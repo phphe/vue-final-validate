@@ -1,32 +1,63 @@
 {
-  "name": "vue-data-validator",
-  "version": "2.2.15",
-  "description": "A Vue validator base on data instead of html dom.",
+  "name": "vue-final-validate",
+  "version": "3.0.0",
+  "description": "Final Vue validation solution. For any UI frames.",
   "keywords": [
     "Vue",
     "Vue2",
-    "Validator"
+    "Validator",
+    "Vue validate"
   ],
-  "main": "dist/vue-data-validator.cjs.js",
-  "module": "dist/vue-data-validator.es.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "node build/build.js"
-  },
-  "author": "phphe <phphe@outlook.com> (https://github.com/phphe)",
-  "unpkg": "dist/vue-data-validator.js",
-  "bugs": {
-    "url": "https://github.com/phphe/vue-data-validator/issues"
-  },
+  "main": "dist/vue-final-validate.cjs.js",
+  "module": "dist/vue-final-validate.es.js",
+  "author": "phphe <phphe@outlook.com>",
+  "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/phphe/vue-data-validator.git"
+    "url": "https://github.com/phphe/vue-final-validate.git"
+  },
+  "scripts": {
+    "dev": "vue-cli-service dev",
+    "build-vue": "vue-cli-service build",
+    "build": "node build/build-lib.js",
+    "lint": "vue-cli-service lint"
+  },
+  "dependencies": {
+    "vue": "^2.5.21",
+    "helper-js": "^1.3.0"
   },
   "devDependencies": {
-    "bili": "^3.0.14"
+    "bili": "^3.4.2",
+    "@vue/cli-plugin-babel": "^3.0.1",
+    "@vue/cli-plugin-eslint": "^3.0.1",
+    "@vue/cli-service": "^3.0.1",
+    "babel-eslint": "^10.0.1",
+    "eslint": "^5.8.0",
+    "eslint-plugin-vue": "^5.0.0",
+    "vue-template-compiler": "^2.5.21"
   },
-  "license": "MIT",
-  "dependencies": {
-    "helper-js": "^1.0.25"
-  }
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "node": true
+    },
+    "extends": [
+      "plugin:vue/essential",
+      "eslint:recommended"
+    ],
+    "rules": {},
+    "parserOptions": {
+      "parser": "babel-eslint"
+    }
+  },
+  "postcss": {
+    "plugins": {
+      "autoprefixer": {}
+    }
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not ie <= 8"
+  ]
 }
