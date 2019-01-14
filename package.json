@@ -1,7 +1,7 @@
 {
   "name": "vue-final-validate",
   "version": "3.0.0",
-  "description": "Final Vue validation solution. For any UI frames.",
+  "description": "Final Vue validation solution for any UI frameworks.",
   "keywords": [
     "Vue",
     "Vue2",
@@ -17,7 +17,7 @@
     "url": "https://github.com/phphe/vue-final-validate.git"
   },
   "scripts": {
-    "dev": "vue-cli-service dev",
+    "dev": "vue-cli-service serve",
     "build-vue": "vue-cli-service build",
     "build": "node build/build-lib.js",
     "lint": "vue-cli-service lint"
