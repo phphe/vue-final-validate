@@ -4,7 +4,7 @@ const bili = require('bili');
 const fs = require('fs');
 
 bili.write({
-  input: './src/validate.js',
+  input: './src/vue-final-validate.js',
   format: ['cjs','umd','umd-min','es'],
   banner: true,
   plugin: [],

@@ -1,28 +1,42 @@
 <template>
   <div id="app">
-    <img alt="Vue logo" src="./assets/logo.png">
-    <HelloWorld msg="Welcome to Your Vue.js App"/>
+    <input type="text" name="" v-model="name">
+    <div v-if="validation.$started && validation.$dirty">
+      <h5 v-for="{message} in validation.$getErrors()">{{message}}</h5>
+    </div>
   </div>
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
 
 export default {
   name: 'app',
-  components: {
-    HelloWorld
-  }
+  components: {},
+  data() {
+    return {
+      name: null,
+      password: null,
+      validation: {
+        name: {required: true, email: true},
+        password: {required: true},
+      },
+      // validation: this.$validate({
+      //   name: {required: true},
+      //   password: {required: true},
+      // }),
+    }
+  },
+  mounted() {
+    // console.log(this.$validate({
+    //   name: {required: true},
+    //   password: {required: true},
+    // }));
+    this.validation = this.$validate(this.validation)
+  },
 }
 </script>
 
 <style>
 #app {
-  font-family: 'Avenir', Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
 }
 </style>

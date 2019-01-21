@@ -1,14 +1,16 @@
 import * as hp from 'helper-js'
-import * as treeHelper from 'tree-helper'
 
-const cls = class VueFinalValidateField {
+// todo support $rules getter
+// todo add rule `range`
+// todo add '$ignore'
+// todo auto trim
+// todo add if to rule
+export class VueFinalValidateField {
   // static -------------
+  static DEFAULT = '__DEFAULT__'
   // str to name
   static generateName(str) {
-    return hp.titleCase(str).toLocaleLowerCase()
-  }
-  static generateTitle(str) {
-    return hp.titleCase(str)
+    return hp.snakeCase(str).replace(/_/g, ' ')
   }
   static isEmpty(value) {
     if (value == null) {
@@ -19,20 +21,6 @@ const cls = class VueFinalValidateField {
       return (value.trim ? value.trim() : value).length === 0
     }
   }
-  static cloneValue(value) {
-    if (hp.isArray(value) || hp.isObject(value)) {
-      return JSON.parse(JSON.stringify(value))
-    } else {
-      return value
-    }
-  }
-  static compareValue(value1, value2) {
-    if (hp.isArray(value1) || hp.isObject(value1)) {
-      return JSON.stringify(value1) === JSON.stringify(value2)
-    } else {
-      return value1 === value2
-    }
-  }
   static findParent(field, handler) {
     let current = field
     while (current) {
@@ -41,14 +29,6 @@ const cls = class VueFinalValidateField {
       }
       current = current.$parent
     }
-  }
-
-  // handler(item, i, parent)
-  //   return false // break loop
-  //   return 'skip children' // skip children
-  //   return 'skip siblings' // skip siblings
-  static traverseField(field, handler) {
-    treeHelper.depthFirstSearch(field, handler, '$children')
   }
   static watchAsync(vm, getter, handler, opt) {
     let destroies = []
@@ -67,7 +47,7 @@ const cls = class VueFinalValidateField {
       }
       destroyExecs()
     }
-    function exec(getter) {
+    function exec(getter, opt) {
       let value
       let first = true
       const unwatch = vm.$watch(() => getter.call(vm, exec), value2 => {
@@ -77,7 +57,7 @@ const cls = class VueFinalValidateField {
         } else {
           main()
         }
-      }, {immediate: true})
+      }, {immediate: true, deep: opt && opt.deep})
       destroies.push(unwatch)
       return value
     }
@@ -105,187 +85,285 @@ const cls = class VueFinalValidateField {
       }, {immediate: true})
     }
   }
+  // do handler first, handler return getter
+  static doWatch(vm, handler) {
+    let oldValue, unwatch
+    const update = () => {
+      const getter = handler.call(vm, oldValue)
+      unwatch = vm.$watch(getter, (value) => {
+        unwatch()
+        oldValue = value
+        update()
+      })
+    }
+    update()
+    return () => unwatch && unwatch()
+  }
   // props --------------
+  // $vm,
+  // $globalConfig,
   // $parent,
   // $key,
-  $type = 'object'
-  // $root,
+  // $validation,
   // $name
-  // $title,
+  $isParent = null
   $empty = null
   $required = null
   $dirty = null
   $valid = null // false when validating.
   $validating = null
   $inputting = false
-  // $inputtingDuration
-  $errors = [] // [{field, ruleName, message}, ...]
+  _dirty = null
+  _valid = null // false when validating.
+  _validating = null
+  _inputting = false
+  _errors = [] // [{field, ruleName, message}, ...] // for end field only
   $value = null
-  $default = null //Not recommended to write. The initial value will be set as default if no default
-  $changed = false // value not equal to default
-  // $getValue({value, field, fields}), // call when use fields.getData
-  // $setValue({value, field, fields}), // call when use fields.setData
+  $deep = null
+  // $valueGetter(field), // how to get self value
+  // $childValueGetter(field), // how to get child value
+  $default = cls.DEFAULT
   /*
-  $rules = {
-    required: true,
-    min: 10,
-    min: {
-      params: [10],
-      message: 'The minimum :name is :params[0].',
-    },
+  // start not with $ or _
+  // or include rules in $rules. if $rules existed, rest is child fields
+  required: true,
+  min: 10,
+  min: {
+    params: [10],
+    message: 'The minimum :name is :params[0].',
   },
   */
   _rules = {}
   _rulesForRequired = []
   _rulesForValid = []
-  // $vm,
-  $children = []
-  constructor(vm, field, parent, key, root) {
+  //
+  $children = null
+  $each = null // Function(value, indexOrKey, count, field)
+  constructor(vm, field, config, parent, key, validation) {
     this.$vm = vm
+    this.$globalConfig = config
     this.$parent = parent
     this.$key = key
     Object.assign(this, field)
-    this.$type = hp.isArray(field) ? 'array' : 'object'
-    this.$root = root || field
-    if (this.$name == null) {
+    if (key && this.$name == null) {
       this.$name = cls.generateName(key)
     }
-    if (this.$title == null) {
-      this.$title = cls.generateTitle(this.$name)
-    }
-    this.$children = this._resolveChildren(field)
-    this.$setDefalt(this.$value)
-  }
-  _resolveChildren(field) {
-    if (hp.isArray(field)) {
-      return field.map((childFieldInfo, index) => new cls(this.$vm, childFieldInfo, field, index, this.fields))
-    } else {
-      const children = []
-      for (const key in field) {
-        const head = key.substr(0, 1)
-        if (head === '_' || head === '$') {
-          continue
+    this.$validation = validation
+    // if no validation, assign methods and props of the validation instance to the inital validation object
+    if (!validation) {
+      validation = field
+      this.$validation = validation
+      for (const key in this) {
+        if (validation[key] !== this[key]) {
+          this.$vm.$set(validation, key, this[key])
         }
-        if (!hp.isArray(field[key]) && !hp.isObject(field[key])) {
-          continue
-        }
-        const childFieldInfo = field[key]
-        const childField = new cls(this.$vm, childFieldInfo, field, key, this.fields)
-        field[key] = childField
-        children.push(childField)
       }
-      return children
+      for (const key of Object.getOwnPropertyNames(cls.prototype)) {
+        if (key === 'constructor') {
+          continue
+        }
+        if (validation[key] !== cls.prototype[key]) {
+          this.$vm.$set(validation, key, cls.prototype[key])
+        }
+      }
     }
   }
-  $add(field, keyOrIndex, index) {
-    field = new cls(this.$vm, field, this, key || index, this.fields)
-    if (this.$type === 'object') {
-      this.$vm.$set(this, keyOrIndex, field)
-    } else {
-      index = keyOrIndex
-    }
-    if (index == null) {
-      this.$children.push(field)
-    } else {
-      this.$children.splice(index, 0, field)
-    }
-    if (this.$obStatus === 'started') {
-      field.start()
-    }
-    return this
+  // base start ======================
+  _baseStart() {
+    // watch to generate validation structure
+    // watch and make _rules, _rulesForRequired, _rulesForValid
+    this._watchForRules()
+    // watch and make $value, $empty
+    this._watchForValue()
+    // watch and make $children, _collectedRules
+    this._updateChildren()
+    this._watchForEach()
+    // after children generated
+    //
+    this._watchForStatus()
   }
-  $delete(keyOrIndex) {
-    const field = this[keyOrIndex] || this.$children[keyOrIndex]
-    if (this.$obStatus === 'started') {
-      field.stop()
+  _baseUnwatches = []
+  _baseUnwatch() {
+    this._baseUnwatches.forEach(f => f())
+    this._baseUnwatches = []
+    if (this.$children) {
+      Object.values(this.$children).forEach(c => c._baseUnwatch())
     }
-    hp.arrayRemove(this.$children, field)
-    if (this.$type === 'object') {
-      this.$vm.$delete(this, keyOrIndex)
+  }
+  // base watch ===============
+  _watchForEach() {
+    // todo
+    return
+    const unwatch = this.$vm.$watch(() => {
+      if (this.$each) {
+        // with $each, mainly for array
+        const children = {}
+        if (this.$value) {
+          let count = 0
+          hp.forAll(this.$value, (value, indexOrKey) => {
+            const childField = this.$each(value, indexOrKey, count, this)
+            children[indexOrKey] = childField
+            count++
+          })
+        }
+        return children
+      }
+    }, (children, old) => {
+      // todo
+      if (old && old.children) {
+        const newKeys = Object.keys(children)
+        const needDelete = Object.keys(old.children).filter(key => !newKeys.includes(key))
+        needDelete.forEach(key => {
+          this.$delete(key)
+        })
+      }
+      Object.keys(children).forEach(key => {
+        if (old && old.children && old.children[key]) {
+          Object.assign(old.children[key], children[key])
+          children[key] = old.children[key]
+        } else {
+          children[key] = new cls(this.$vm, children[key], this.$globalConfig, this, key, this.$validation)
+          children[key]._notBaseStarted = true
+          this.$vm.$set(this, key, children[key])
+        }
+      })
+      old = getterResult
+      this.$vm.$set(this, '_collectedRules', rules)
+      this.$children = Object.keys(children).length > 0 ? children : null
+      Object.values(children).forEach(c => {
+        if (c._notBaseStarted) {
+          c._baseStart()
+        }
+      })
+      if (this.$validation.$started) {
+        Object.values(children).forEach(c => {
+          if (!c.$started) {
+            c.start()
+          }
+        })
+      }
+    }, {immediate: true})
+    this._baseUnwatches.push(unwatch)
+  }
+  _updateChildren() {
+    if (this.$each) {
+      this.$isParent = true
+    } else if (!this.$each && (this.$isParent || this === this.$validation || this.$rules)) {
+      // with $each is updated by watcher
+      // validation or with `$rules`
+      this.$isParent = true
+      for (const {key, value} of iterateObjectWithoutDollarDash(this)) {
+        this.$add(key, value)
+      }
     }
-    return this
   }
-  $setDefalt(value) {
-    this.$default = cls.cloneValue(value)
+  _watchForValue() {
+    const unwatch = this.$vm.$watch(() => {
+      let value
+      if (this.$valueGetter) {
+        value = this.$valueGetter(this)
+      } else {
+        let t = cls.findParent(this, field => field.$childValueGetter)
+        const childValueGetter = t ? t.$childValueGetter : this.$globalConfig.childValueGetter
+        if (childValueGetter) {
+          value = childValueGetter(this)
+        } else {
+          if (this === this.$validation) {
+            value = this.$vm.$data // must use vm.$data; use `vm` will get error `Maximum call stack size exceeded`
+          } else {
+            value = this.$parent.$value && this.$parent.$value[this.$key]
+          }
+        }
+      }
+      return value
+    }, (value) => {
+      this.$value = value
+      this.$empty = cls.isEmpty(value)
+    }, {immediate: true})
+    this._baseUnwatches.push(unwatch)
   }
-  $obStatus = 'stopped' // observer status: started, stopped
   _watchForRules() {
-    this._unwatchRules = this.$vm.$watch(() => {
-      if (!this.$rules) {
-        return
-      }
+    const unwatch = this.$vm.$watch(() => {
       const rulesForRequired = []
       const rulesForValid = []
-      const rules = {}
-      for (const name in this.$rules) {
-        let ruleInfo = this.$rules[name]
+      let rules
+      if (this.$each || this.$rules || this === this.$validation) {
+        rules = this.$rules || {}
+      } else {
+        // end field
+        rules = {}
+        for (const {key, value} of iterateObjectWithoutDollarDash(this)) {
+          rules[key] = value
+        }
+      }
+      for (const name in rules) {
+        let ruleInfo = rules[name]
         if (!hp.isObject(ruleInfo)) {
           ruleInfo = {
             params: hp.isArray(ruleInfo) ? ruleInfo : [ruleInfo],
           }
         }
+        // resolve type
+        let type = 'valid'
+        if (ruleInfo.hasOwnProperty('type')) {
+          type = ruleInfo.type
+        } else if (this.$globalConfig.rules[name]) {
+          type = this.$globalConfig.rules[name].type
+        }
         const wrappedRule = {
           name,
           params: ruleInfo.params,
-          type: ruleInfo.hasOwnProperty('type') ? ruleInfo.type : 'valid',
-          handler: () => {
-            const ruleHandler = cls.findParent(
-              this,
-              field => field.$rules && field.$rules[name] && field.$rules[name].handler
-            )
+          type,
+          handler: (exec) => {
+            const ruleHandler = ruleInfo.handler || (this.$globalConfig.rules[name] && this.$globalConfig.rules[name].handler)
             if (!ruleHandler) {
-              throw new Error(`No handler found for rule '${name}' in field ${this.$name}.`)
+              const e = new Error(`No handler found for rule '${name}' in field ${this.$name}.`)
+              e.name = 'no_handler'
+              throw e
             }
-            const wrappedError = (e) => {
-              const errorMessage = cls.findParent(this, field => field.hasOwnProperty('$errorMessage'))
-              return {valid: false, error: e, message: errorMessage}
+            const onSystemError = (e) => {
+              console.warn(`System error when validate field '${this.$name}' rule '${name}'.`, e)
+              const systemErrorMessage = this.$globalConfig.systemErrorMessage
+              return {validateResult: false, error: e, message: systemErrorMessage}
             }
             try {
-              const ruleHandlerReturn = ruleHandler(
+              const ruleReturn = ruleHandler(
                 this.$value,
                 ruleInfo.params,
-                {field: this, root: this.$root},
+                this,
+                exec,
               )
-              if (hp.isPromise(ruleHandlerReturn)) {
-                return ruleHandlerReturn.catch((e) => wrappedError(e))
+              if (hp.isPromise(ruleReturn)) {
+                return ruleReturn.catch((e) => onSystemError(e))
               } else {
-                return ruleHandlerReturn
+                return ruleReturn
               }
             } catch (e) {
-              return wrappedError(e)
+              return onSystemError(e)
             }
           },
-          message: async (ruleHandlerReturn) => {
+          message: async (ruleReturn) => {
             // convert message to str from str, function, null
             const resolveMessage = async (message) => {
               if (hp.isFunction(message)) {
                 message = await message(
                   this.$value,
                   ruleInfo.params,
-                  {field: this, root: this.$root, ruleHandlerReturn}
+                  this,
+                  ruleReturn,
                 )
               }
               return message
             }
             //
-            let messageTpl
-            if (ruleHandlerReturn && ruleHandlerReturn.message) {
-              // get message from ruleHandlerReturn
-              messageTpl = await resolveMessage(ruleHandlerReturn.message)
-            } else {
-              // get message from parent
-              cls.findParent(this, field => {
-                let msg = field.$rules && field.$rules[name] && field.$rules[name].hasOwnProperty('message')
-                messageTpl = await resolveMessage(msg)
-                return msg
-              })
-            }
+            // get message from config
+            let messageTpl = ruleInfo.message || (this.$globalConfig.rules[name] && this.$globalConfig.rules[name].message)
             if (!messageTpl) {
               // get message from parent defaultMessage
-              messageTpl = cls.findParent(this, field => field.hasOwnProperty('$defaultMessage'))
-              messageTpl = await resolveMessage(msg)
+              messageTpl = this.$globalConfig.defaultMessage
             }
             // compile message
+            messageTpl = await resolveMessage(messageTpl)
             let message = messageTpl.replace(/:name/g, this.$name)
             .replace(/:value/g, this.$value)
             if (ruleInfo.params) {
@@ -317,177 +395,279 @@ const cls = class VueFinalValidateField {
         this._rulesForValid = result.valid
       }
     }, {immediate: true})
+    this._baseUnwatches.push(unwatch)
   }
-  _watchForDirty() {
-    this._unwatchDirty = this.$vm.$watch(
-      () => this.$children.length ? this.$children.map(c => c.$dirty) : this.$value,
-      () => {
-        if (this.$children.length === 0) {
-          this.$dirty = true
-        } else {
-          this.$dirty = this.$children.find(c => c.$dirty)
-        }
-      },
-      {deep: true}
-    )
-  }
-  _watchForParentFieldValid() {
-    // for parent field only
-    this._unwatchParentFieldValid = this.$vm.$watch(
-      () => this.$children.map(c => c.$valid && c.$validating),
-      () => {
-        if (this.$children.length > 0) {
-          this.$valid = this.$children.every(c => c.$valid)
-          this.$validating = Boolean(this.$children.find(c => c.$validating))
-        }
-      }
-    )
-  }
-  _watchForParentFieldValue() {
-    // prevent parent first execution
-    if (this._unwatchParentFieldValue) {
-      return
-    }
-    // for parent field only
-    // child first
-    this.$children.forEach(childField => childField._watchForParentFieldValue())
-    this._unwatchParentFieldValue = this.$vm.$watch(
-      () => [this.$children.map(c => c.$value), this.$nullable, this.$changed],
-      () => {
-        if (this.$children.length > 0) {
-          let data
-          if (this.$type === 'object') {
-            data = {}
-            this.$children.forEach(childField => {
-              data[childField.$key] = childField.$value
-            })
-          } else {
-            data = this.$children.map(childField => childField.$value)
-          }
-          if (this.$nullable) {
-            if (!this.$changed) {
-              data = null
-            }
-          }
-          this.$value = data
-        }
-      },
-      {immediate: true, deep: true},
-    )
-  }
-  _watchForChanged() {
-    this._unwatchChanged = this.$vm.$watch(
-      () => this.$children.length ? this.$children.map(c => c.$changed) : this.$value,
-      () => {
-        if (this.$children.length > 0) {
-          this.$changed = Boolean(this.$children.find(c => c.$changed))
-        } else {
-          this.$changed = cls.compareValue(this.$value, this.$default)
-        }
-      },
-      {deep: true}
-    )
-  }
-  _watchForValidate() {
-    this._unwatchValidate = this.$vm.$watch(() => {
-      if (!this.$rules) {
-        return {valid: true}
-      }
-      // required
-      let required
-      const parent = this.$parent
-      const required = field._rules.required && field._rules.required.handler()
-      if (!field._rules.required && ut.isEmpty(field.$value)) {
-        return {valid: true}
-      } else {
-        const required = field._rules.required.handler()
-        // todo validate all
-        let valid = true
-        const errors = []
-        for (const key in field._rules) {
-          let ruleHandler = field._rules[key].handler
-          if (key === 'required') {
-            if (required) {
-              ruleHandler = () => !ut.isEmpty(field.$value)
-            } else {
-              ruleHandler = () => true
-            }
-          }
-          valid = ruleHandler()
-          if (!valid) {
-            const message = field._rules[key].message()
-            errors.push({key, message})
-            break
-          }
-        }
-        return {required, valid, errors}
-      }
-    }, () => {
-      if (!valueUpdated) {
-        valueUpdated = true
-      } else {
-        this.$dirty = true
-      }
-    }, {immediate: true, deep: true})
-  }
+  // start =====================
+  _unwatches = []
+  $started = false
   $start() {
-    if (this.$obStatus === 'started') {
+    if (this.$started) {
       return
     }
-    // todo 什么时候执行child.start
-    // children start
-    this.$children.forEach(childField => {
-      childField.$start()
-    })
-    // watch rules and generate _rules
-    this._watchForRules()
-    // watch and auto update `$dirty`
-    this._watchForDirty()
-    // watch and auto update `$valid`, `$validating` of parent field
-    this._watchForParentFieldValid()
-    //
-    this._watchForParentFieldValue()
-    //
-    this._watchForChanged()
-    // watch and auto update `$required`, `$valid`, `$validating`
+    if (this.$children) {
+      Object.values(this.$children).forEach(childField => {
+        childField.$start()
+      })
+    }
+    this._watchForStatus()
     this._watchForValidate()
-    this.$obStatus = 'started'
+    this.$started = true
   }
-  $stop() {}
-  $getData() {
-    if (this.$children.length === 0) {
-      return this.$getValue ? this.$getValue({
-        value: this.$value,
-        field: this,
-        root: this.$root,
-      }) : this.$value
-    }
-    if (this.$type === 'object') {
-      const data = {}
-      this.$children.forEach(childField => {
-        data[childField.$key] = childField.$getData()
+  $stop() {
+    this._unwatches.forEach(f => f())
+    this._unwatches = []
+    Object.values(this.$children).forEach(c => c.$stop())
+    this.$started = false
+  }
+  // advanced watch ===============
+  // watch and auto update `dirty`, `inputting`, `valid`, `validating`
+  _watchForStatus() {
+    let unwatch
+    // computed status: $dirty, $inputting, $valid, $validating
+    unwatch = this.$vm.$watch(
+      () => this._dirty || (this.$children && Object.values(this.$children).find(c => c.$dirty)),
+      (value) => {
+        this.$dirty = Boolean(value)
+      },
+      {immediate: true}
+    )
+    this._unwatches.push(unwatch)
+    unwatch = this.$vm.$watch(
+      () => this._inputting || (this.$children && Object.values(this.$children).find(c => c.$inputting)),
+      (value) => {
+        this.$inputting = Boolean(value)
+      },
+      {immediate: true}
+    )
+    this._unwatches.push(unwatch)
+    unwatch = this.$vm.$watch(
+      () => this._validating || (this.$children && Object.values(this.$children).find(c => c.$validating)),
+      (value) => {
+        this.$validating = Boolean(value)
+      },
+      {immediate: true}
+    )
+    this._unwatches.push(unwatch)
+    unwatch = this.$vm.$watch(
+      () => this._valid && (!this.$children || Object.values(this.$children).every(c => c.$valid)),
+      (value) => {
+        this.$valid = Boolean(value)
+      },
+      {immediate: true}
+    )
+    this._unwatches.push(unwatch)
+    // self status: _dirty _inputting
+    unwatch = this.$vm.$watch(
+      () => this.$value,
+      () => {
+        if (cls._lastUserInputAt) {
+          const nowTime = new Date().getTime()
+          if (nowTime - cls._lastUserInputAt < 100) {
+            const setDirty = () => {
+              this._inputtingTimer = null
+              this._inputting = false
+              this._dirty = true
+              if (this.$started) {
+                if (this.$default !== cls.DEFAULT && this.$value === this.$default) {
+                  // equal $default
+                  this._dirty = false
+                }
+              }
+            }
+            if (!this.$globalConfig.inputtingDuration) {
+              setDirty()
+            } else {
+              this._inputting = true
+              if (this._inputtingTimer) {
+                clearTimeout(this._inputtingTimer)
+                this._inputtingTimer = null
+              }
+              this._inputtingTimer = setTimeout(setDirty, this.$globalConfig.inputtingDuration)
+            }
+          }
+        }
+      },
+      {immediate: true, deep: this.$deep}
+    )
+    this._unwatches.push(unwatch)
+  }
+  // watch and auto update `$required`, `_valid`, `_validating`, `_errors`
+  _watchForValidate() {
+    let validateId = -1
+    const unwatch = cls.watchAsync(this.$vm, async (exec) => {
+      validateId++
+      const id = validateId
+      const rules = this._rules
+      const rulesRequired = this._rulesForRequired
+      const rulesValid = this._rulesForValid
+      let required = false
+      let valid = true
+      const reasons = []
+      exec(() => this.$inputting)
+      if (this.$inputting) {
+        return {inputting: true}
+      }
+      // observe $value
+      exec(() => this.$value, {deep: this.$deep})
+      this._validating = true
+      // check required
+      for (let i = 0; i < rulesRequired.length; i++) {
+        const rule = rulesRequired[i]
+        exec(() => rule.handler)
+        let t = rule.handler(exec)
+        if (hp.isPromise(t) && this.$globalConfig.timeout) {
+          t = promiseTimeout(t, this.$globalConfig.timeout)
+        }
+        const ruleReturn = await t
+        if (id !== validateId) {
+          return {expired: true}
+        }
+        if (ruleReturn || ruleReturn.validateResult) {
+          required = true
+        }
+        if (i === rulesRequired.length - 1) {
+          // last rule
+          exec(() => this.$empty)
+          if (required && this.$empty) {
+            valid = false
+            reasons.push({ruleReturn, rule})
+            exec(() => this.$globalConfig.bail)
+            if (this.$globalConfig.bail) {
+              return {required, valid, reasons, id}
+            }
+          }
+        }
+      }
+      exec(() => this._dirty)
+      if (!this._dirty) {
+        // stop validate if not dirty
+        return {required, valid, reasons, id}
+      }
+      // check valid
+      for (const rule of rulesValid) {
+        exec(() => rule.handler)
+        let t = rule.handler(exec)
+        if (hp.isPromise(t) && this.$globalConfig.timeout) {
+          t = promiseTimeout(t, this.$globalConfig.timeout)
+        }
+        const ruleReturn = await t
+        if (id !== validateId) {
+          return {expired: true}
+        }
+        if (!ruleReturn || (ruleReturn.hasOwnProperty('validateResult') && !ruleReturn.validateResult)) {
+          valid = false
+          reasons.push({ruleReturn, rule})
+          exec(() => this.$globalConfig.bail)
+          if (this.$globalConfig.bail) {
+            return {required, valid, reasons, id}
+          }
+        }
+      }
+      //
+      return {required, valid, reasons, id}
+    }, async (value, old) => {
+      if (value.inputting || value.expired) {
+        return
+      }
+      this.$required = value.required
+      this._valid = value.valid
+      const errors = []
+      for (const {ruleReturn, rule} of value.reasons) {
+        const message = await rule.message(ruleReturn)
+        if (value.id !== validateId) {
+          return
+        }
+        errors.push({field: this, ruleName: rule.name, message})
+      }
+      this._errors = errors
+      this._validating = false
+    }, {immediate: true})
+    this._unwatches.push(unwatch)
+  }
+  // methods about errors ==================
+  $getErrors() {
+    if (this.$children) {
+      const r = []
+      Object.values(this.$children).forEach(c => {
+        r.push(...c.$getErrors())
       })
-      return data
+      return r
     } else {
-      return this.$children.map(childField => childField.$getData())
+      return this._errors
     }
   }
-  $setData(data) {}
-  $setDirty(dirty) {
-    if (this.$children.length === 0) {
-      this.$dirty = dirty
+  $getFirstError() {
+    if (this.$children) {
+      for (const c of Object.values(this.$children)) {
+        const r = c.$getFirstError()
+        if (r) {
+          return r
+        }
+      }
     } else {
-      this.$children.forEach(childField => {
-        childField.$setDirty(dirty)
-      })
+      return this._errors[0]
+    }
+  }
+  // don't use add, delete with $each
+  $add(key, field) {
+    field = new cls(this.$vm, field, this.$globalConfig, this, key, this.$validation)
+    this.$vm.$set(this, key, field)
+    if (!this.$children) {
+      this.$children = {}
+    }
+    this.$vm.$set(this.$children, key, field)
+    field._baseStart()
+    if (this.$started) {
+      field.$start()
     }
     return this
   }
+  $delete(keyOrIndex) {
+    const field = this[keyOrIndex]
+    field._destroy()
+    this.$vm.$delete(this, keyOrIndex)
+    this.$vm.$delete(this.$children, keyOrIndex)
+    return this
+  }
+  _destroy() {
+    this._baseUnwatch()
+    this.$stop()
+  }
+  $setStatus(name, value) {
+    this[`_${name}`] = value
+    if (this.$children) {
+      Object.values(this.$children).forEach(c => c.$setStatus(name, value))
+    }
+    return this
+  }
+  $setDirty(dirty) {
+    return this.$setStatus('dirty', dirty)
+  }
+  $trySubmit() {
+    this.$setDirty(true)
+    this.$setStatus('inputting', false)
+    return new Promise((resolve, reject) => {
+      const unwatch = this.$vm.$watch(() => this.$validating, (validating) => {
+        // use setTimeout to delay immediate watch, else unwatch is not ready
+        setTimeout(() => {
+          if (!validating) {
+            unwatch()
+            if (this.$valid) {
+              resolve(this)
+            } else {
+              const e = new Error('Invalid input.')
+              e.name = 'invalid'
+              reject(e)
+            }
+          }
+        }, 0)
+      }, {immediate: true})
+    })
+  }
 }
+export const cls = VueFinalValidateField
 
-export VueFinalValidateField
-
-export function makeMountPoint() {
+export function makeMountPoint(Vue) {
   const mountPointVm = new Vue({
     data() {
       return {
@@ -500,359 +680,72 @@ export function makeMountPoint() {
 
 export function getDefaultConfig() {
   return {
-    $defaultMessage: 'The :name is invalid.',
-    $errorMessage: 'System error during verification.',
-    $rules: {},
-    $bail: true // Stop running validation rules after the first validation failure.,
-    $inputtingDuration: 1000,
+    defaultMessage: 'The :name is invalid.',
+    systemErrorMessage: 'System error during verification.',
+    rules: {},
+    bail: true, // Stop running validation rules after the first validation failure.,
+    inputtingDuration: 1000,
+    timeout: 5000, // validate timeout, for async validate
+    methodName: 'validate',
+    // childValueGetter(filed)
   }
 }
 
-export function makeGlobal(config) {
-  const cfg = getDefaultConfig()
-  if (config) {
-    config = Object.assign(cfg, config)
-  }
-  cfg.$isGlobal = true
-  return cfg
-}
-
-export function makeValidateMethod(mountPoint, theGlobal) {
-  return function (fields) {
-    fields = new VueFinalValidateField(this, fields, theGlobal)
+export function makeValidateMethod(mountPoint, config) {
+  Object.assign(initValidation, config)
+  return initValidation
+  function initValidation(validation, data) {
+    if (data && !validation.hasOwnProperty('$valueGetter')) {
+      validation.$valueGetter = () => data
+    }
+    new VueFinalValidateField(this, validation, initValidation)
     if (!mountPoint[this._uid]) {
       this.$set(mountPoint, this._uid, [])
     }
-    mountPoint[this._uid].push(fields)
-    fields.$start()
-    return fields
-  }
-}
-
-export default {
-  install(Vue, config) {
-    const name = config.name || 'validate'
-    const cfg = {}
-    if (config) {
-      Object.keys(config).forEach(key => {
-        if (key !== 'name') {
-          cfg[`$${key}`] = config[key]
-        }
-      })
-    }
-    const root = makeGlobal(cfg)
-    const mountPoint = makeMountPoint()
-    Vue.prototype[`$${name}`] = makeValidateMethod(mountPoint, root)
-  }
-}
-
-// =============================================================================
-
-// todo
-/*
-1. promise
-2. required
-3. error component
-4. 验证时生成message
- */
-const utils = {
-  isEmpty,
-  eachField,
-  getFieldValue,
-  setFieldValue,
-  iterateChildFields,
-  generateName,
-  generateTitle,bails
-}
-const ut = utils
-
-class VueFinalValidateField {
-  defaultMessage = 'The :name is invalid.'
-  systemErrorMessage = 'System error during verification'
-  defaultLocale = 'en'
-  locale = 'en'
-  rules = {}
-  bail = true // Stop running validation rules after the first validation failure.
-  initValidation(vm, validation, fields) {
-    const defaultValidation = {
-      fields: fields,
-      dirty: false,
-      valid: false,
-      validating: false,
-      vm,
-      vueFinalValidate: this,
-      getData() {
-        const validation = this
-        return recursive(this.fields, true)
-        function recursive(field, isRoot) {
-          if (isRoot || field.$isParent) {
-            if (hp.isArray(field)) {
-              return field.map((childField, index) => recursive(childField))
-            } else {
-              // object
-              const r = {}
-              for (const {key, childField} of ut.iterateChildFields(field)) {
-                r[key] = recursive(childField)
-              }
-              return r
-            }
-          } else {
-            return ut.getFieldValue(field, validation)
-          }
-        }
-      },
-      async getDataIfValid(timeout = 500) {
-        if (this.validating) {
-          if (!this._waitValidating) {
-            this._waitValidating = new Promise((resolve, reject) => {
-              this._waitValidatingResolve = resolve
-            })
-          }
-          await promiseTimeout(this._waitValidating, timeout).catch(() => {
-            throw new Error('validating')
-          })
-        }
-        if (!this.valid) {
-          throw new Error('invalid')
-        }
-        return this.getData()
-      },
-      setData(data) {
-        const validation = this
-        recursive(this.fields, data, true)
-        return this
-        function recursive(field, data, isRoot) {
-          if (isRoot || field.$isParent) {
-            if (data) {
-              for (const {key, childField} of ut.iterateChildFields(field)) {
-                if (data.hasOwnProperty(key)) {
-                  recursive(childField, data[key])
-                }
-              }
-            }
-            // no data to set
-          } else {
-            ut.setFieldValue(field, data, validation)
-          }
-        }
-      },
-      setDirty(to) {
-        this.dirty = to
-        ut.eachField(this.fields, (field, key, parent) => {
-          field.$dirty = to
-        })
-        return this
-      },
-      start() {
-        ut.eachField(this.fields, (field, key, parent) => {
-          field._watch.start()
-        })
-      },
-      stop() {
-        ut.eachField(this.fields, (field, key, parent) => {
-          field._watch.stop()
-        })
-      },
-    }
-    for (const key in defaultValidation) {
-      vm.$set(validation, key, defaultValidation[key])
-    }
-    //
-    ut.eachField(validation.fields, (field, key, parent) => {
-      this.initField(vm, field, key, parent, validation)
-    })
+    mountPoint[this._uid].push(validation)
+    validation._baseStart()
+    validation.$start()
     return validation
   }
-  initField(vm, field, key, parent, validation) {
-    vm.$set(field, '$key', key)
-    if (!field.$name) vm.$set(field, '$name', ut.generateName(key))
-    if (!field.$title) vm.$set(field, '$title', ut.generateTitle(field.$name))
-    vm.$set(field, '$required', false)
-    // attach states to field
-    vm.$set(field, '$dirty', false)
-    vm.$set(field, '$valid', false)
-    vm.$set(field, '$validating', false)
-    vm.$set(field, '$errors', [])
-    if (!has(field, '$value')) vm.$set(field, '$value', null)
-    // add _rules and auto update it
-    if (!has(field, '_rules')) {
-      vm.$set(field, '_rules', {})
-      vm.$watch(() => {
-        if (!field.$rules) {
-          return
-        }
-        const rulesForRequired = [] // willDecideRequired
-        const rulesForValid = []
-        for (const name in field.$rules) {
-          let ruleInfo = field.$rules[name]
-          if (!hp.isObject(ruleInfo)) {
-            ruleInfo = {
-              params: hp.isArray(ruleInfo) ? ruleInfo : [ruleInfo],
-            }
-          }
-          const wrappedRule = {
-            name,
-            params: ruleInfo.params,
-            willDecideRequired: has(ruleInfo, 'willDecideRequired') ? ruleInfo.willDecideRequired : this.rules[name].willDecideRequired,
-            handler: () => {
-              let ruleHandler = ruleInfo.handler || this.rules[name].handler
-              if (!ruleHandler) {
-                throw new Error(`No handler found for rule '${name}'.`)
-              }
-              return ruleHandler(field.$value, ruleInfo.params, field, validation)
-            },
-            message: (validateResult) => {
-              let message = ruleInfo.message
-              if (hp.isObject(message)) {
-                message = message[this.locale] || message[this.defaultLocale]
-              }
-              if (!message) {
-                message = this.rules[name] && this.rules[name].message
-                if (hp.isObject(message)) {
-                  message = message[this.locale] || message[this.defaultLocale]
-                }
-              }
-              if (hp.isFunction(message)) {
-                message = message(field.$value, validateResult, ruleInfo.params, field, validation)
-              }
-              if (!message) {
-                message = this.defaultMessage
-              }
-              message = message.replace(/:name/g, field.$name).replace(/:value/g, field.$value)
-              if (ruleInfo.params) {
-                for (let i = 0; i < ruleInfo.params.length; i++) {
-                  const param = ruleInfo.params[i]
-                  const reg = new RegExp(':params\\[' + i + '\\]', 'g')
-                  message = message.replace(reg, param)
-                }
-              }
-              return message
-            },
-          }
-          if (wrappedRule.willDecideRequired) {
-            rulesForRequired.push(wrappedRule)
-          } else {
-            rulesForValid.push(wrappedRule)
-          }
-        }
-        return {required: rulesForRequired, valid: rulesForValid}
-      }, (rules) => {
-        field._rules = rules
-      }, {immediate: true})
-    }
-    // watch on valid
-    let isFirst
-    const watch = {
-      isRequiredAndValid: () => {
-        if (!field.$rules) {
-          return {valid: true}
-        }
-        // required
-        let isRequired // todo watch promise见底部
-        const isRequired = field._rules.required && field._rules.required.handler()
-        if (!field._rules.required && ut.isEmpty(field.$value)) {
-          return {valid: true}
-        } else {
-          const required = field._rules.required.handler()
-          // todo validate all
-          let valid = true
-          const errors = []
-          for (const key in field._rules) {
-            let ruleHandler = field._rules[key].handler
-            if (key === 'required') {
-              if (isRequired) {
-                ruleHandler = () => !ut.isEmpty(field.$value)
-              } else {
-                ruleHandler = () => true
-              }
-            }
-            valid = ruleHandler()
-            if (!valid) {
-              const message = field._rules[key].message()
-              errors.push({key, message})
-              break
-            }
-          }
-          return {required, valid, errors}
-        }
-      },
-      handler: (t) => {
-        const dirty = !isFirst
-        vm.$set(field, '$dirty', dirty)
-        vm.$set(field, '$required', t.required)
-        vm.$set(field, '$valid', t.valid)
-        vm.$set(field, '$errors', t.errors)
-        vm.$set(validation, '$dirty', dirty)
-        if (!t.valid) {
-          vm.$set(validation, '$valid', false)
-          // todo add errors to validation
-        } else {
-          let allValid = true
-          ut.eachField(validation.fields, (field) => {
-            if (!field.$valid) {
-              allValid = false
-              return false
-            }
-          })
-          vm.$set(validation, '$valid', allValid)
-        }
-      },
-      start: () => {
-        if (!watch._stop) {
-          isFirst = true
-          watch._stop = vm.$watch(watch.isRequiredAndValid, watch.handler, {immediate: true})
-          isFirst = false
-        }
-        return watch._stop
-      },
-      stop: () => {
-        if (watch._stop) {
-          watch._stop()
-          watch._stop = null
-        }
-      },
-    }
-    field._watch = watch
-  }
-  static utils = utils
 }
-function isEmpty(value) {
-  if (value == null) {
-    // null or undefined
-    return true
-  } else if (value.length != null) {
-    // string or array
-    return (value.trim ? value.trim() : value).length === 0
+
+// listen user input events
+export function listenUserInput() {
+  if (cls._listenUserInput) {
+    return
   }
+  cls._listenUserInput = true
+  const handler = () => {
+    cls._lastUserInputAt = new Date().getTime()
+  }
+  hp.onDOM(window, 'keydown', handler)
+  hp.onDOM(window, 'mousedown', handler)
 }
-function ut.eachField(fields, handler) {
-  recursive(fields)
-  function recursive(field, key, parent) {
-    if (parent) {
-      if (!field.$isParent) {
-        return handler(field, key, parent)
+
+export default function install(Vue, config) {
+  listenUserInput()
+  const cfg = getDefaultConfig()
+  if (config) {
+    Object.assign(cfg, config)
+  }
+  config = cfg
+  const name = config.methodName
+  const mountPoint = makeMountPoint(Vue)
+  const validateMethod = Vue.prototype[`$${name}`] = makeValidateMethod(mountPoint, cfg)
+  Vue.mixin({
+    beforeDestroy() {
+      // destroy validation of current vm
+      if (mountPoint[this._uid]) {
+        mountPoint[this._uid].forEach(validation => {
+          validation._baseUnwatch()
+        })
+        this.$delete(mountPoint, this._uid)
       }
     }
-    // field is a parent
-    for (const {key, childField} of ut.iterateChildFields(field)) {
-      if (recursive(childField, key, field) === false) {
-        return false
-      }
-    }
-  }
+  })
+  return validateMethod
 }
-function ut.getFieldValue(field, validation) {
-  return field.$getValue ? field.$getValue(
-    field.$value, field, validation
-  ) : field.$value
-}
-function ut.setFieldValue(field, value, validation) {
-  if (field.$setValue) {
-    return field.$setValue(value, field, validation)
-  } else {
-    field.$value = value
-  }
-}
+
 function promiseTimeout(promise, timeout) {
   return new Promise((resolve, reject) => {
     let t, rejected
@@ -867,155 +760,18 @@ function promiseTimeout(promise, timeout) {
     })
     t = setTimeout(() => {
       rejected = true
-      reject(new Error('Promise timeout.'))
+      const e = new Error('Promise timeout!')
+      e.name = 'timeout'
+      reject(e)
     }, timeout)
   })
 }
-function* ut.iterateChildFields(field) {
-  if (hp.isArray(field)) {
-    for (let i = 0; i < field.length; i++) {
-      const childField = field[i]
-      yield {key: i, childField}
+
+function* iterateObjectWithoutDollarDash(obj) {
+  for (const key in obj) {
+    const start = key.substr(0, 1)
+    if (start !== '$' && start !== '_') {
+      yield {key, value: obj[key]}
     }
-  } else {
-    for (const key in field) {
-      const start = key.substr(0, 1)
-      if (start !== '$' && start !== '_') {
-        const childField = field[key]
-        if (hp.isArray(childField) || hp.isObject(childField)) {
-          yield {key, childField};
-        }
-      }
-    }
-  }
-}
-
-// str to name
-function generateName(str) {
-  return hp.titleCase(str).toLocaleLowerCase()
-}
-function generateTitle(str) {
-  return hp.titleCase(str)
-}
-
-function has(obj, prop) {
-  return obj.hasOwnProperty(prop)
-}
-
-export default VueFinalValidateField
-
-// api
-/*
-fields = {
-  user: {
-    $key,
-    $name,
-    $title,
-    $required, // readonly
-    $dirty, // Write is not recommended
-    $valid, // false when validating. Write is not recommended
-    $validating, // Write is not recommended
-    // Write is not recommended
-    $errors: [
-      {key, message},
-      ...
-    ],
-    $value,
-    $getValue(value, field, validation), // call when use validation.getData
-    $setValue(value, field, validation), // call when use validation.setData
-    $rules: {
-      required: true,
-      required(value, params, field, validation) {
-        // the context is the current vm
-        // return bool
-        // return a obj with additional info(validate result will be passed to message): {$valid: bool, ...}
-        // return promise
-      },
-      required: {
-        willDecideRequired: true,
-        params: [true],
-        handler: (value, params, field, validation) => value,
-        message: 'The :name is required.',
-      },
-      min: 10,
-      min: {
-        params: [10],
-        handler(value, params, field, validation), {
-          return value < params[0]
-        },
-        message: 'The :name is required.',
-        message: 'The :name must be at least :params[0].',
-        message(value, validateResult, params, field, validation), {
-          return `The ${field.$name} must be at least ${params[0]}.`
-        },
-        message: {
-          zh: '中文消息',
-          en: 'English message',
-        },
-      },
-    },
-    // nested children
-    $isParent, // required if has children
-    name: {
-      $parent, // readonly
-      $rules: {},
-    },
-  },
-}
-validation = {
-  fields,
-  dirty,
-  valid, // false when validating
-  validating,
-  getData(),
-  getDataIfValid(),
-  setData(data),
-  setDirty(to),
-}
-*/
-function watchAsync(vm, getter, handler) {
-  const newGetter = function (...args) {
-
-    return getter.call(this, attach, ...args)
-  }
-  let destroies = []
-  function destroyAll() {
-    for (const func of destroies) {
-      func()
-    }
-    destroies = []
-  }
-  function watchAndGetValue(getter, handler) {
-    let value
-    let first = true
-    const destroy = vm.$watch(getter, (v, oldValue) => {
-      value = v
-      if (first) {
-        first = false
-      } else {
-        handler.call(vm, v, oldValue)
-      }
-    }, {immediate: true})
-    return [value, destroy]
-  }
-  function start() {
-    vm.$watch(newGetter, (value, oldValue) => {
-      value = v
-      if (first) {
-        first = false
-      } else {
-        destroy()
-        start()
-      }
-    }, options)
-  }
-  function attach(getter) {
-    let value
-    let first = true
-    const [value, destroy] = watchAndGetValue(getter, () => {
-      destroyAll()
-      start()
-    })
-    return value
   }
 }
