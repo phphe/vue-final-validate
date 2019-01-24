@@ -209,6 +209,9 @@ export class VueFinalValidateField {
         return children
       }
     }, (children, old) => {
+      if (!this.$each) {
+        return
+      }
       if (old) {
         let needDelete
         if (children) {
@@ -466,6 +469,14 @@ export class VueFinalValidateField {
     )
     this._unwatches.push(unwatch)
     unwatch = this.$vm.$watch(
+      () => this._valid && (!this.$children || Object.values(this.$children).every(c => c.$valid)),
+      (value) => {
+        this.$valid = Boolean(value)
+      },
+      {immediate: true}
+    )
+    this._unwatches.push(unwatch)
+    unwatch = this.$vm.$watch(
       () => this._validating || (this.$children && Object.values(this.$children).find(c => c.$validating)),
       (value) => {
         this.$validating = Boolean(value)
@@ -541,6 +552,10 @@ export class VueFinalValidateField {
       let required = false
       let valid = true
       const reasons = []
+      exec(() => this.$ignore)
+      if (this.$ignore) {
+        return {ignore: true}
+      }
       exec(() => this.$inputting)
       if (this.$inputting) {
         return {inputting: true}
@@ -613,6 +628,14 @@ export class VueFinalValidateField {
       return {required, valid, reasons, id}
     }, async (value, old) => {
       if (value.inputting || value.expired) {
+        return
+      }
+      if (value.ignore) {
+        this.$required = false
+        this._valid = true
+        const errors = []
+        this._errors = errors
+        this._validating = false
         return
       }
       this.$required = value.required
@@ -693,20 +716,19 @@ export class VueFinalValidateField {
     this.$setDirty(true)
     this.$setStatus('inputting', false)
     return new Promise((resolve, reject) => {
-      const unwatch = this.$vm.$watch(() => this.$validating, (validating) => {
-        // use setTimeout to delay immediate watch, else unwatch is not ready
-        setTimeout(() => {
-          if (!validating) {
-            unwatch()
-            if (this.$valid) {
-              resolve(this)
-            } else {
-              const e = new Error('Invalid input.')
-              e.name = 'invalid'
-              reject(e)
-            }
+      const unwatch = this.$vm.$watch(() => this.$validating, async (validating) => {
+        // to delay immediate watch, else unwatch is not ready
+        await hp.waitTime(0)
+        if (!validating) {
+          unwatch()
+          if (this.$valid) {
+            resolve(this)
+          } else {
+            const e = new Error('Invalid input.')
+            e.name = 'invalid'
+            reject(e)
           }
-        }, 0)
+        }
       }, {immediate: true})
     })
   }
