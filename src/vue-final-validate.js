@@ -474,19 +474,20 @@ export class VueFinalValidateField {
     )
     this._unwatches.push(unwatch)
     unwatch = this.$vm.$watch(
-      () => this.$ignoreIf,
-      (ignoreIf) => {
-        if (ignoreIf) {
-          this._ignore = Boolean(ignoreIf(this))
-        } else {
-          this._ignore = false
-        }
+      () => this.$ignoreIf && this.$ignoreIf(this),
+      (value) => {
+        this._ignore = Boolean(value)
       },
       {immediate: true}
     )
     this._unwatches.push(unwatch)
     unwatch = this.$vm.$watch(
-      () => this._ignore || cls.findParent(this, field => field._ignore),
+      () => {
+        if (cls.findParent(this, field => field._ignore)) {
+          return true
+        }
+        return this._ignore
+      },
       (value) => {
         this.$ignore = Boolean(value)
       },
