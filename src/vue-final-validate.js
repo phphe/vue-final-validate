@@ -1,10 +1,6 @@
 import * as hp from 'helper-js'
 
-// todo support $rules getter
-// todo add rule `range`
-// todo add '$ignore'
-// todo auto trim
-// todo add if to rule
+// todo support each
 export class VueFinalValidateField {
   // static -------------
   static DEFAULT = '__DEFAULT__'
@@ -34,6 +30,7 @@ export class VueFinalValidateField {
     let destroies = []
     let destroyMain
     let value0, oldValue0
+    let count = -1 // updated count
     main()
     return destroy
     function destroyExecs() {
@@ -62,7 +59,6 @@ export class VueFinalValidateField {
       return value
     }
     function main() {
-      let count = 0
       if (destroyMain) {
         destroyMain()
         destroyMain = null
@@ -71,10 +67,14 @@ export class VueFinalValidateField {
         destroyExecs()
         return getter.call(vm, exec)
       }, async (result) => {
-        const localCount = count
         count++
+        const localCount = count
         oldValue0 = value0
         value0 = await result
+        if (localCount !== count) {
+          // expired
+          return
+        }
         if (localCount === 0) {
           if (opt && opt.immediate) {
             handler.call(vm, value0, oldValue0)
@@ -117,6 +117,9 @@ export class VueFinalValidateField {
   _valid = null // false when validating.
   _validating = null
   _inputting = false
+  _ignore = null
+  $ignore = null
+  $ignoreIf = null
   _errors = [] // [{field, ruleName, message}, ...] // for end field only
   $value = null
   $deep = null
@@ -283,107 +286,124 @@ export class VueFinalValidateField {
     this._baseUnwatches.push(unwatch)
   }
   _watchForRules() {
-    const unwatch = this.$vm.$watch(() => {
+    let ii = 0
+    const unwatch = cls.watchAsync(this.$vm, async (exec) => {
+      ii++
+      if (ii > 100) {
+        throw 'loop'
+      }
       const rulesForRequired = []
       const rulesForValid = []
       let rules
       if (this.$each || this.$rules || this === this.$validation) {
-        rules = this.$rules || {}
+        rules = this.$rules
+        if (hp.isFunction(rules)) {
+          rules = rules(this)
+        } else if (rules) {
+          // clone
+          rules = Object.assign({}, rules)
+        } else {
+          rules = {}
+        }
       } else {
         // end field
         rules = {}
+        await hp.waitTime(0) // wait 1 millisecond to make getter async
         for (const {key, value} of iterateObjectWithoutDollarDash(this)) {
+          exec(() => this[key])
           rules[key] = value
         }
       }
-      for (const name in rules) {
-        let ruleInfo = rules[name]
-        if (!hp.isObject(ruleInfo)) {
-          ruleInfo = {
-            params: hp.isArray(ruleInfo) ? ruleInfo : [ruleInfo],
+      return exec(() => {
+        for (const name in rules) {
+          let ruleInfo = rules[name]
+          if (!hp.isObject(ruleInfo)) {
+            ruleInfo = {
+              params: hp.isArray(ruleInfo) ? ruleInfo : [ruleInfo],
+            }
           }
-        }
-        // resolve type
-        let type = 'valid'
-        if (ruleInfo.hasOwnProperty('type')) {
-          type = ruleInfo.type
-        } else if (this.$globalConfig.rules[name]) {
-          type = this.$globalConfig.rules[name].type
-        }
-        const wrappedRule = {
-          name,
-          params: ruleInfo.params,
-          type,
-          handler: (exec) => {
-            const ruleHandler = ruleInfo.handler || (this.$globalConfig.rules[name] && this.$globalConfig.rules[name].handler)
-            if (!ruleHandler) {
-              const e = new Error(`No handler found for rule '${name}' in field ${this.$name}.`)
-              e.name = 'no_handler'
-              throw e
-            }
-            const onSystemError = (e) => {
-              console.warn(`System error when validate field '${this.$name}' rule '${name}'.`, e)
-              const systemErrorMessage = this.$globalConfig.systemErrorMessage
-              return {validateResult: false, error: e, message: systemErrorMessage}
-            }
-            try {
-              const ruleReturn = ruleHandler(
-                this.$value,
-                ruleInfo.params,
-                this,
-                exec,
-              )
-              if (hp.isPromise(ruleReturn)) {
-                return ruleReturn.catch((e) => onSystemError(e))
-              } else {
-                return ruleReturn
+          // resolve type
+          let type = 'valid'
+          if (ruleInfo.hasOwnProperty('type')) {
+            type = ruleInfo.type
+          } else if (this.$globalConfig.rules[name]) {
+            type = this.$globalConfig.rules[name].type
+          }
+          const wrappedRule = {
+            name,
+            params: ruleInfo.params,
+            type,
+            handler: (exec) => {
+              const ruleHandler = ruleInfo.handler || (this.$globalConfig.rules[name] && this.$globalConfig.rules[name].handler)
+              if (!ruleHandler) {
+                const e = new Error(`No handler found for rule '${name}' in field ${this.$name}.`)
+                e.name = 'no_handler'
+                throw e
               }
-            } catch (e) {
-              return onSystemError(e)
-            }
-          },
-          message: async (ruleReturn) => {
-            // convert message to str from str, function, null
-            const resolveMessage = async (message) => {
-              if (hp.isFunction(message)) {
-                message = await message(
+              const onSystemError = (e) => {
+                console.warn(`System error when validate field '${this.$name}' rule '${name}'.`, e)
+                const systemErrorMessage = this.$globalConfig.systemErrorMessage
+                return {__validate: false, error: e, message: systemErrorMessage}
+              }
+              try {
+                const ruleReturn = ruleHandler(
                   this.$value,
                   ruleInfo.params,
                   this,
-                  ruleReturn,
+                  exec,
                 )
+                if (hp.isPromise(ruleReturn)) {
+                  return ruleReturn.catch((e) => onSystemError(e))
+                } else {
+                  return ruleReturn
+                }
+              } catch (e) {
+                return onSystemError(e)
+              }
+            },
+            message: async (ruleReturn) => {
+              // convert message to str from str, function, null
+              const resolveMessage = async (message) => {
+                if (hp.isFunction(message)) {
+                  message = await message(
+                    this.$value,
+                    ruleInfo.params,
+                    this,
+                    ruleReturn,
+                  )
+                }
+                return message
+              }
+              //
+              // get message from config
+              let messageTpl = ruleInfo.message || (this.$globalConfig.rules[name] && this.$globalConfig.rules[name].message)
+              if (!messageTpl) {
+                // get message from parent defaultMessage
+                messageTpl = this.$globalConfig.defaultMessage
+              }
+              // compile message
+              messageTpl = await resolveMessage(messageTpl)
+              let message = messageTpl.replace(/:name/g, this.$name)
+              .replace(/:value/g, this.$value)
+              if (ruleInfo.params) {
+                for (let i = 0; i < ruleInfo.params.length; i++) {
+                  const param = ruleInfo.params[i]
+                  const reg = new RegExp(':params\\[' + i + '\\]', 'g')
+                  message = message.replace(reg, param)
+                }
               }
               return message
-            }
-            //
-            // get message from config
-            let messageTpl = ruleInfo.message || (this.$globalConfig.rules[name] && this.$globalConfig.rules[name].message)
-            if (!messageTpl) {
-              // get message from parent defaultMessage
-              messageTpl = this.$globalConfig.defaultMessage
-            }
-            // compile message
-            messageTpl = await resolveMessage(messageTpl)
-            let message = messageTpl.replace(/:name/g, this.$name)
-            .replace(/:value/g, this.$value)
-            if (ruleInfo.params) {
-              for (let i = 0; i < ruleInfo.params.length; i++) {
-                const param = ruleInfo.params[i]
-                const reg = new RegExp(':params\\[' + i + '\\]', 'g')
-                message = message.replace(reg, param)
-              }
-            }
-            return message
-          },
+            },
+          }
+          if (wrappedRule.type === 'required') {
+            rulesForRequired.push(wrappedRule)
+          } else {
+            rulesForValid.push(wrappedRule)
+          }
+          rules[name] = wrappedRule
         }
-        if (wrappedRule.type === 'required') {
-          rulesForRequired.push(wrappedRule)
-        } else {
-          rulesForValid.push(wrappedRule)
-        }
-        rules[name] = wrappedRule
-      }
-      return {required: rulesForRequired, valid: rulesForValid, rules}
+        return {required: rulesForRequired, valid: rulesForValid, rules}
+      })
     }, (result) => {
       if (!result) {
         this._rules = {}
@@ -420,10 +440,10 @@ export class VueFinalValidateField {
     this.$started = false
   }
   // advanced watch ===============
-  // watch and auto update `dirty`, `inputting`, `valid`, `validating`
+  // watch and auto update `dirty`, `inputting`, `valid`, `validating`, `ignore`
   _watchForStatus() {
     let unwatch
-    // computed status: $dirty, $inputting, $valid, $validating
+    // computed status: $dirty, $inputting, $valid, $validating, $ignore
     unwatch = this.$vm.$watch(
       () => this._dirty || (this.$children && Object.values(this.$children).find(c => c.$dirty)),
       (value) => {
@@ -449,9 +469,21 @@ export class VueFinalValidateField {
     )
     this._unwatches.push(unwatch)
     unwatch = this.$vm.$watch(
-      () => this._valid && (!this.$children || Object.values(this.$children).every(c => c.$valid)),
+      () => this.$ignoreIf,
+      (ignoreIf) => {
+        if (ignoreIf) {
+          this._ignore = Boolean(ignoreIf(this))
+        } else {
+          this._ignore = false
+        }
+      },
+      {immediate: true}
+    )
+    this._unwatches.push(unwatch)
+    unwatch = this.$vm.$watch(
+      () => this._ignore || cls.findParent(this, field => field._ignore),
       (value) => {
-        this.$valid = Boolean(value)
+        this.$ignore = Boolean(value)
       },
       {immediate: true}
     )
@@ -518,12 +550,15 @@ export class VueFinalValidateField {
         if (hp.isPromise(t) && this.$globalConfig.timeout) {
           t = promiseTimeout(t, this.$globalConfig.timeout)
         }
-        const ruleReturn = await t
+        let ruleReturn = await t
         if (id !== validateId) {
           return {expired: true}
         }
-        if (ruleReturn || ruleReturn.validateResult) {
-          required = true
+        if (ruleReturn.hasOwnProperty('__validate')) {
+          required = ruleReturn.__validate
+          ruleReturn = ruleReturn.value
+        } else {
+          required = Boolean(ruleReturn)
         }
         if (i === rulesRequired.length - 1) {
           // last rule
@@ -550,12 +585,17 @@ export class VueFinalValidateField {
         if (hp.isPromise(t) && this.$globalConfig.timeout) {
           t = promiseTimeout(t, this.$globalConfig.timeout)
         }
-        const ruleReturn = await t
+        let ruleReturn = await t
         if (id !== validateId) {
           return {expired: true}
         }
-        if (!ruleReturn || (ruleReturn.hasOwnProperty('validateResult') && !ruleReturn.validateResult)) {
-          valid = false
+        if (ruleReturn.hasOwnProperty('__validate')) {
+          valid = ruleReturn.__validate
+          ruleReturn = ruleReturn.value
+        } else {
+          valid = Boolean(ruleReturn)
+        }
+        if (!valid) {
           reasons.push({ruleReturn, rule})
           exec(() => this.$globalConfig.bail)
           if (this.$globalConfig.bail) {
