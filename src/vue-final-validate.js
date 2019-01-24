@@ -1,6 +1,5 @@
 import * as hp from 'helper-js'
 
-// todo support each
 export class VueFinalValidateField {
   // static -------------
   static DEFAULT = '__DEFAULT__'
@@ -195,8 +194,6 @@ export class VueFinalValidateField {
   }
   // base watch ===============
   _watchForEach() {
-    // todo
-    return
     const unwatch = this.$vm.$watch(() => {
       if (this.$each) {
         // with $each, mainly for array
@@ -212,38 +209,44 @@ export class VueFinalValidateField {
         return children
       }
     }, (children, old) => {
-      // todo
-      if (old && old.children) {
-        const newKeys = Object.keys(children)
-        const needDelete = Object.keys(old.children).filter(key => !newKeys.includes(key))
+      if (old) {
+        let needDelete
+        if (children) {
+          const newKeys = Object.keys(children)
+          needDelete = Object.keys(old).filter(key => !newKeys.includes(key))
+        } else {
+          needDelete = Object.keys(old)
+        }
         needDelete.forEach(key => {
           this.$delete(key)
         })
       }
-      Object.keys(children).forEach(key => {
-        if (old && old.children && old.children[key]) {
-          Object.assign(old.children[key], children[key])
-          children[key] = old.children[key]
-        } else {
-          children[key] = new cls(this.$vm, children[key], this.$globalConfig, this, key, this.$validation)
-          children[key]._notBaseStarted = true
-          this.$vm.$set(this, key, children[key])
-        }
-      })
-      old = getterResult
-      this.$vm.$set(this, '_collectedRules', rules)
-      this.$children = Object.keys(children).length > 0 ? children : null
-      Object.values(children).forEach(c => {
-        if (c._notBaseStarted) {
-          c._baseStart()
-        }
-      })
-      if (this.$validation.$started) {
-        Object.values(children).forEach(c => {
-          if (!c.$started) {
-            c.start()
+      if (children) {
+        Object.keys(children).forEach(key => {
+          if (old && old[key]) {
+            Object.assign(this[key], children[key])
+            children[key] = this[key]
+          } else {
+            children[key] = new cls(this.$vm, children[key], this.$globalConfig, this, key, this.$validation)
+            children[key]._notBaseStarted = true
+            this.$vm.$set(this, key, children[key])
           }
         })
+        this.$children = Object.keys(children).length > 0 ? children : null
+        Object.values(children).forEach(c => {
+          if (c._notBaseStarted) {
+            c._baseStart()
+          }
+        })
+        if (this.$validation.$started) {
+          Object.values(children).forEach(c => {
+            if (!c.$started) {
+              c.start()
+            }
+          })
+        }
+      } else {
+        this.$children = null
       }
     }, {immediate: true})
     this._baseUnwatches.push(unwatch)
@@ -251,13 +254,15 @@ export class VueFinalValidateField {
   _updateChildren() {
     if (this.$each) {
       this.$isParent = true
-    } else if (!this.$each && (this.$isParent || this === this.$validation || this.$rules)) {
-      // with $each is updated by watcher
+    } else if (this.$isParent || this === this.$validation || this.$rules) {
+      // is parent
       // validation or with `$rules`
       this.$isParent = true
       for (const {key, value} of iterateObjectWithoutDollarDash(this)) {
         this.$add(key, value)
       }
+    } else {
+      this.$isParent = false
     }
   }
   _watchForValue() {
