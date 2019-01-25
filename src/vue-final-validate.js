@@ -244,7 +244,7 @@ export class VueFinalValidateField {
         if (this.$validation.$started) {
           Object.values(children).forEach(c => {
             if (!c.$started) {
-              c.start()
+              c.$start()
             }
           })
         }
