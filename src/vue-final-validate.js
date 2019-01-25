@@ -303,7 +303,7 @@ export class VueFinalValidateField {
       const rulesForRequired = []
       const rulesForValid = []
       let rules
-      if (this.$each || this.$rules || this === this.$validation) {
+      if (this.$each || this.$isParent || this.$rules || this === this.$validation) {
         rules = this.$rules
         if (hp.isFunction(rules)) {
           rules = rules(this)
@@ -321,6 +321,9 @@ export class VueFinalValidateField {
           exec(() => this[key])
           rules[key] = value
         }
+      }
+      if (!rules || Object.keys(rules).length === 0) {
+        return
       }
       return exec(() => {
         for (const name in rules) {
