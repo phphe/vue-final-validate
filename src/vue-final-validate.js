@@ -539,7 +539,7 @@ export class VueFinalValidateField {
           }
         }
       },
-      {immediate: true, deep: this.$deep}
+      {deep: this.$deep}
     )
     this._unwatches.push(unwatch)
   }
