@@ -434,7 +434,11 @@ export class VueFinalValidateField {
   $stop() {
     this._unwatches.forEach(f => f())
     this._unwatches = []
-    Object.values(this.$children).forEach(c => c.$stop())
+    if (this.$children) {
+      Object.values(this.$children).forEach(childField => {
+        childField.$stop()
+      })
+    }
     this.$started = false
   }
   // advanced watch ===============
