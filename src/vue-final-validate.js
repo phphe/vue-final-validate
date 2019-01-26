@@ -25,23 +25,16 @@ export class VueFinalValidateField {
       current = current.$parent
     }
   }
+  // the dependences in getter can't be auto resolved. must use exec to include dependences
   static watchAsync(vm, getter, handler, opt) {
     let destroies = []
-    let destroyMain
-    let value0, oldValue0
+    let value, oldValue
     let count = -1 // updated count
     main()
     return destroy
-    function destroyExecs() {
+    function destroy() {
       destroies.forEach(f => f())
       destroies = []
-    }
-    function destroy() {
-      if (destroyMain) {
-        destroyMain()
-        destroyMain = null
-      }
-      destroyExecs()
     }
     function exec(getter, opt) {
       let value
@@ -58,30 +51,30 @@ export class VueFinalValidateField {
       return value
     }
     function main() {
-      if (destroyMain) {
-        destroyMain()
-        destroyMain = null
-      }
-      destroyMain = vm.$watch(() => {
-        destroyExecs()
-        return getter.call(vm, exec)
-      }, async (result) => {
-        count++
-        const localCount = count
-        oldValue0 = value0
-        value0 = await result
+      destroy()
+      const result = getter.call(vm, exec)
+      count++
+      const localCount = count
+      oldValue = value
+      const getterExecuted = (value) => {
         if (localCount !== count) {
           // expired
           return
         }
         if (localCount === 0) {
           if (opt && opt.immediate) {
-            handler.call(vm, value0, oldValue0)
+            handler.call(vm, value, oldValue)
           }
         } else {
-          handler.call(vm, value0, oldValue0)
+          handler.call(vm, value, oldValue)
         }
-      }, {immediate: true})
+      }
+      //
+      if (hp.isPromise(result)) {
+        result.then(getterExecuted)
+      } else {
+        getterExecuted(result)
+      }
     }
   }
   // do handler first, handler return getter
@@ -294,19 +287,14 @@ export class VueFinalValidateField {
     this._baseUnwatches.push(unwatch)
   }
   _watchForRules() {
-    let ii = 0
-    const unwatch = cls.watchAsync(this.$vm, async (exec) => {
-      ii++
-      if (ii > 100) {
-        throw 'loop'
-      }
+    const unwatch = cls.watchAsync(this.$vm, (exec) => {
       const rulesForRequired = []
       const rulesForValid = []
       let rules
-      if (this.$each || this.$isParent || this.$rules || this === this.$validation) {
+      if (exec(() => this.$each || this.$isParent || this.$rules || this === this.$validation)) {
         rules = this.$rules
         if (hp.isFunction(rules)) {
-          rules = rules(this)
+          rules = exec(() => rules(this))
         } else if (rules) {
           // clone
           rules = Object.assign({}, rules)
@@ -316,7 +304,6 @@ export class VueFinalValidateField {
       } else {
         // end field
         rules = {}
-        await hp.waitTime(0) // wait 1 millisecond to make getter async
         for (const {key, value} of iterateObjectWithoutDollarDash(this)) {
           exec(() => this[key])
           rules[key] = value
