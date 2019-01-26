@@ -1,5 +1,5 @@
 /*!
- * vue-final-validate v0.0.0-beta
+ * vue-final-validate v0.0.0-beta.2
  * (c) 2017-present phphe <phphe@outlook.com>
  * Released under the MIT License.
  */
@@ -483,8 +483,6 @@
       if (IteratorPrototype !== Object.prototype && IteratorPrototype.next) {
         // Set @@toStringTag to native iterators
         _setToStringTag(IteratorPrototype, TAG, true);
-        // fix for some old engines
-        if (!_library && typeof IteratorPrototype[ITERATOR] != 'function') _hide(IteratorPrototype, ITERATOR, returnThis);
       }
     }
     // fix Array#{values, @@iterator}.name in V8 / FF
@@ -493,7 +491,7 @@
       $default = function values() { return $native.call(this); };
     }
     // Define iterator
-    if ((!_library || FORCED) && (BUGGY || VALUES_BUG || !proto[ITERATOR])) {
+    if ((FORCED) && (BUGGY || VALUES_BUG || !proto[ITERATOR])) {
       _hide(proto, ITERATOR, $default);
     }
     // Plug for library
@@ -2292,185 +2290,6 @@
 
   _setSpecies$1('RegExp');
 
-  var dP$4 = _objectDp$1.f;
-  var FProto = Function.prototype;
-  var nameRE = /^\s*function ([^ (]*)/;
-  var NAME$1 = 'name';
-
-  // 19.2.4.2 name
-  NAME$1 in FProto || _descriptors$1 && dP$4(FProto, NAME$1, {
-    configurable: true,
-    get: function () {
-      try {
-        return ('' + this).match(nameRE)[1];
-      } catch (e) {
-        return '';
-      }
-    }
-  });
-
-  // https://github.com/tc39/Array.prototype.includes
-
-  var $includes = _arrayIncludes$1(true);
-
-  _export$1(_export$1.P, 'Array', {
-    includes: function includes(el /* , fromIndex = 0 */) {
-      return $includes(this, el, arguments.length > 1 ? arguments[1] : undefined);
-    }
-  });
-
-  _addToUnscopables$1('includes');
-
-  // helper for String#{startsWith, endsWith, includes}
-
-
-
-  var _stringContext = function (that, searchString, NAME) {
-    if (_isRegexp(searchString)) throw TypeError('String#' + NAME + " doesn't accept regex!");
-    return String(_defined$1(that));
-  };
-
-  var MATCH$1 = _wks$1('match');
-  var _failsIsRegexp = function (KEY) {
-    var re = /./;
-    try {
-      '/./'[KEY](re);
-    } catch (e) {
-      try {
-        re[MATCH$1] = false;
-        return !'/./'[KEY](re);
-      } catch (f) { /* empty */ }
-    } return true;
-  };
-
-  var INCLUDES = 'includes';
-
-  _export$1(_export$1.P + _export$1.F * _failsIsRegexp(INCLUDES), 'String', {
-    includes: function includes(searchString /* , position = 0 */) {
-      return !!~_stringContext(this, searchString, INCLUDES)
-        .indexOf(searchString, arguments.length > 1 ? arguments[1] : undefined);
-    }
-  });
-
-  // most Object methods by ES6 should accept primitives
-
-
-
-  var _objectSap = function (KEY, exec) {
-    var fn = (_core.Object || {})[KEY] || Object[KEY];
-    var exp = {};
-    exp[KEY] = exec(fn);
-    _export(_export.S + _export.F * _fails(function () { fn(1); }), 'Object', exp);
-  };
-
-  // 19.1.2.14 Object.keys(O)
-
-
-
-  _objectSap('keys', function () {
-    return function keys(it) {
-      return _objectKeys(_toObject(it));
-    };
-  });
-
-  var keys$1 = _core.Object.keys;
-
-  var keys$2 = keys$1;
-
-  var isEnum$1 = _objectPie.f;
-  var _objectToArray = function (isEntries) {
-    return function (it) {
-      var O = _toIobject(it);
-      var keys = _objectKeys(O);
-      var length = keys.length;
-      var i = 0;
-      var result = [];
-      var key;
-      while (length > i) if (isEnum$1.call(O, key = keys[i++])) {
-        result.push(isEntries ? [key, O[key]] : O[key]);
-      } return result;
-    };
-  };
-
-  // https://github.com/tc39/proposal-object-values-entries
-
-  var $values = _objectToArray(false);
-
-  _export(_export.S, 'Object', {
-    values: function values(it) {
-      return $values(it);
-    }
-  });
-
-  var values = _core.Object.values;
-
-  var values$1 = values;
-
-  // 19.1.2.7 Object.getOwnPropertyNames(O)
-  _objectSap('getOwnPropertyNames', function () {
-    return _objectGopnExt.f;
-  });
-
-  var $Object = _core.Object;
-  var getOwnPropertyNames = function getOwnPropertyNames(it) {
-    return $Object.getOwnPropertyNames(it);
-  };
-
-  var getOwnPropertyNames$1 = getOwnPropertyNames;
-
-  var core_getIterator = _core.getIterator = function (it) {
-    var iterFn = core_getIteratorMethod(it);
-    if (typeof iterFn != 'function') throw TypeError(it + ' is not iterable!');
-    return _anObject(iterFn.call(it));
-  };
-
-  var getIterator = core_getIterator;
-
-  var getIterator$1 = getIterator;
-
-  // 19.1.2.1 Object.assign(target, source, ...)
-
-
-
-
-
-  var $assign = Object.assign;
-
-  // should work with symbols and should have deterministic property order (V8 bug)
-  var _objectAssign = !$assign || _fails(function () {
-    var A = {};
-    var B = {};
-    // eslint-disable-next-line no-undef
-    var S = Symbol();
-    var K = 'abcdefghijklmnopqrst';
-    A[S] = 7;
-    K.split('').forEach(function (k) { B[k] = k; });
-    return $assign({}, A)[S] != 7 || Object.keys($assign({}, B)).join('') != K;
-  }) ? function assign(target, source) { // eslint-disable-line no-unused-vars
-    var T = _toObject(target);
-    var aLen = arguments.length;
-    var index = 1;
-    var getSymbols = _objectGops.f;
-    var isEnum = _objectPie.f;
-    while (aLen > index) {
-      var S = _iobject(arguments[index++]);
-      var keys = getSymbols ? _objectKeys(S).concat(getSymbols(S)) : _objectKeys(S);
-      var length = keys.length;
-      var j = 0;
-      var key;
-      while (length > j) if (isEnum.call(S, key = keys[j++])) T[key] = S[key];
-    } return T;
-  } : $assign;
-
-  // 19.1.3.1 Object.assign(target, source)
-
-
-  _export(_export.S + _export.F, 'Object', { assign: _objectAssign });
-
-  var assign = _core.Object.assign;
-
-  var assign$1 = assign;
-
   var runtime = createCommonjsModule(function (module) {
   /**
    * Copyright (c) 2014-present, Facebook, Inc.
@@ -3227,6 +3046,185 @@
       });
     };
   }
+
+  var dP$4 = _objectDp$1.f;
+  var FProto = Function.prototype;
+  var nameRE = /^\s*function ([^ (]*)/;
+  var NAME$1 = 'name';
+
+  // 19.2.4.2 name
+  NAME$1 in FProto || _descriptors$1 && dP$4(FProto, NAME$1, {
+    configurable: true,
+    get: function () {
+      try {
+        return ('' + this).match(nameRE)[1];
+      } catch (e) {
+        return '';
+      }
+    }
+  });
+
+  // https://github.com/tc39/Array.prototype.includes
+
+  var $includes = _arrayIncludes$1(true);
+
+  _export$1(_export$1.P, 'Array', {
+    includes: function includes(el /* , fromIndex = 0 */) {
+      return $includes(this, el, arguments.length > 1 ? arguments[1] : undefined);
+    }
+  });
+
+  _addToUnscopables$1('includes');
+
+  // helper for String#{startsWith, endsWith, includes}
+
+
+
+  var _stringContext = function (that, searchString, NAME) {
+    if (_isRegexp(searchString)) throw TypeError('String#' + NAME + " doesn't accept regex!");
+    return String(_defined$1(that));
+  };
+
+  var MATCH$1 = _wks$1('match');
+  var _failsIsRegexp = function (KEY) {
+    var re = /./;
+    try {
+      '/./'[KEY](re);
+    } catch (e) {
+      try {
+        re[MATCH$1] = false;
+        return !'/./'[KEY](re);
+      } catch (f) { /* empty */ }
+    } return true;
+  };
+
+  var INCLUDES = 'includes';
+
+  _export$1(_export$1.P + _export$1.F * _failsIsRegexp(INCLUDES), 'String', {
+    includes: function includes(searchString /* , position = 0 */) {
+      return !!~_stringContext(this, searchString, INCLUDES)
+        .indexOf(searchString, arguments.length > 1 ? arguments[1] : undefined);
+    }
+  });
+
+  // most Object methods by ES6 should accept primitives
+
+
+
+  var _objectSap = function (KEY, exec) {
+    var fn = (_core.Object || {})[KEY] || Object[KEY];
+    var exp = {};
+    exp[KEY] = exec(fn);
+    _export(_export.S + _export.F * _fails(function () { fn(1); }), 'Object', exp);
+  };
+
+  // 19.1.2.14 Object.keys(O)
+
+
+
+  _objectSap('keys', function () {
+    return function keys(it) {
+      return _objectKeys(_toObject(it));
+    };
+  });
+
+  var keys$1 = _core.Object.keys;
+
+  var keys$2 = keys$1;
+
+  var isEnum$1 = _objectPie.f;
+  var _objectToArray = function (isEntries) {
+    return function (it) {
+      var O = _toIobject(it);
+      var keys = _objectKeys(O);
+      var length = keys.length;
+      var i = 0;
+      var result = [];
+      var key;
+      while (length > i) if (isEnum$1.call(O, key = keys[i++])) {
+        result.push(isEntries ? [key, O[key]] : O[key]);
+      } return result;
+    };
+  };
+
+  // https://github.com/tc39/proposal-object-values-entries
+
+  var $values = _objectToArray(false);
+
+  _export(_export.S, 'Object', {
+    values: function values(it) {
+      return $values(it);
+    }
+  });
+
+  var values = _core.Object.values;
+
+  var values$1 = values;
+
+  // 19.1.2.7 Object.getOwnPropertyNames(O)
+  _objectSap('getOwnPropertyNames', function () {
+    return _objectGopnExt.f;
+  });
+
+  var $Object = _core.Object;
+  var getOwnPropertyNames = function getOwnPropertyNames(it) {
+    return $Object.getOwnPropertyNames(it);
+  };
+
+  var getOwnPropertyNames$1 = getOwnPropertyNames;
+
+  var core_getIterator = _core.getIterator = function (it) {
+    var iterFn = core_getIteratorMethod(it);
+    if (typeof iterFn != 'function') throw TypeError(it + ' is not iterable!');
+    return _anObject(iterFn.call(it));
+  };
+
+  var getIterator = core_getIterator;
+
+  var getIterator$1 = getIterator;
+
+  // 19.1.2.1 Object.assign(target, source, ...)
+
+
+
+
+
+  var $assign = Object.assign;
+
+  // should work with symbols and should have deterministic property order (V8 bug)
+  var _objectAssign = !$assign || _fails(function () {
+    var A = {};
+    var B = {};
+    // eslint-disable-next-line no-undef
+    var S = Symbol();
+    var K = 'abcdefghijklmnopqrst';
+    A[S] = 7;
+    K.split('').forEach(function (k) { B[k] = k; });
+    return $assign({}, A)[S] != 7 || Object.keys($assign({}, B)).join('') != K;
+  }) ? function assign(target, source) { // eslint-disable-line no-unused-vars
+    var T = _toObject(target);
+    var aLen = arguments.length;
+    var index = 1;
+    var getSymbols = _objectGops.f;
+    var isEnum = _objectPie.f;
+    while (aLen > index) {
+      var S = _iobject(arguments[index++]);
+      var keys = getSymbols ? _objectKeys(S).concat(getSymbols(S)) : _objectKeys(S);
+      var length = keys.length;
+      var j = 0;
+      var key;
+      while (length > j) if (isEnum.call(S, key = keys[j++])) T[key] = S[key];
+    } return T;
+  } : $assign;
+
+  // 19.1.3.1 Object.assign(target, source)
+
+
+  _export(_export.S + _export.F, 'Object', { assign: _objectAssign });
+
+  var assign = _core.Object.assign;
+
+  var assign$1 = assign;
 
   var _iterStep$1 = function (done, value) {
     return { value: value, done: !!done };
@@ -4061,6 +4059,14 @@
       el.attachEvent.apply(el, ["on".concat(name), handler].concat(args));
     }
   }
+  function waitTime(milliseconds, callback) {
+    return new Promise(function (resolve, reject) {
+      setTimeout(function () {
+        callback && callback();
+        resolve();
+      }, milliseconds);
+    });
+  } // overload waitFor(condition, time = 100, maxCount = 1000))
   var URLHelper =
   /*#__PURE__*/
   function () {
@@ -4281,11 +4287,6 @@
   var _marked =
   /*#__PURE__*/
   regeneratorRuntime.mark(iterateObjectWithoutDollarDash);
-  // todo add rule `range`
-  // todo add '$ignore'
-  // todo auto trim
-  // todo add if to rule
-
   var VueFinalValidateField =
   /*#__PURE__*/
   function () {
@@ -4319,30 +4320,23 @@
 
           current = current.$parent;
         }
-      }
+      } // the dependences in getter can't be auto resolved. must use exec to include dependences
+
     }, {
       key: "watchAsync",
       value: function watchAsync(vm, getter, handler, opt) {
         var destroies = [];
-        var destroyMain;
-        var value0, oldValue0;
+        var value, oldValue;
+        var count = -1; // updated count
+
         main();
         return destroy;
 
-        function destroyExecs() {
+        function destroy() {
           destroies.forEach(function (f) {
             return f();
           });
           destroies = [];
-        }
-
-        function destroy() {
-          if (destroyMain) {
-            destroyMain();
-            destroyMain = null;
-          }
-
-          destroyExecs();
         }
 
         function exec(getter, opt) {
@@ -4367,58 +4361,33 @@
         }
 
         function main() {
-          var count = 0;
+          destroy();
+          var result = getter.call(vm, exec);
+          count++;
+          var localCount = count;
+          oldValue = value;
 
-          if (destroyMain) {
-            destroyMain();
-            destroyMain = null;
+          var getterExecuted = function getterExecuted(value) {
+            if (localCount !== count) {
+              // expired
+              return;
+            }
+
+            if (localCount === 0) {
+              if (opt && opt.immediate) {
+                handler.call(vm, value, oldValue);
+              }
+            } else {
+              handler.call(vm, value, oldValue);
+            }
+          }; //
+
+
+          if (isPromise(result)) {
+            result.then(getterExecuted);
+          } else {
+            getterExecuted(result);
           }
-
-          destroyMain = vm.$watch(function () {
-            destroyExecs();
-            return getter.call(vm, exec);
-          },
-          /*#__PURE__*/
-          function () {
-            var _ref = _asyncToGenerator(
-            /*#__PURE__*/
-            regeneratorRuntime.mark(function _callee(result) {
-              var localCount;
-              return regeneratorRuntime.wrap(function _callee$(_context) {
-                while (1) {
-                  switch (_context.prev = _context.next) {
-                    case 0:
-                      localCount = count;
-                      count++;
-                      oldValue0 = value0;
-                      _context.next = 5;
-                      return result;
-
-                    case 5:
-                      value0 = _context.sent;
-
-                      if (localCount === 0) {
-                        if (opt && opt.immediate) {
-                          handler.call(vm, value0, oldValue0);
-                        }
-                      } else {
-                        handler.call(vm, value0, oldValue0);
-                      }
-
-                    case 7:
-                    case "end":
-                      return _context.stop();
-                  }
-                }
-              }, _callee, this);
-            }));
-
-            return function (_x) {
-              return _ref.apply(this, arguments);
-            };
-          }(), {
-            immediate: true
-          });
         }
       } // do handler first, handler return getter
 
@@ -4475,6 +4444,12 @@
       _defineProperty(this, "_validating", null);
 
       _defineProperty(this, "_inputting", false);
+
+      _defineProperty(this, "_ignore", null);
+
+      _defineProperty(this, "$ignore", null);
+
+      _defineProperty(this, "$ignoreIf", null);
 
       _defineProperty(this, "_errors", []);
 
@@ -4597,8 +4572,6 @@
       value: function _watchForEach() {
         var _this = this;
 
-        // todo
-        return;
         var unwatch = this.$vm.$watch(function () {
           if (_this.$each) {
             // with $each, mainly for array
@@ -4617,62 +4590,73 @@
             return children;
           }
         }, function (children, old) {
-          // todo
-          if (old && old.children) {
-            var newKeys = keys$2(children);
+          if (!_this.$each) {
+            return;
+          }
 
-            var needDelete = keys$2(old.children).filter(function (key) {
-              return !newKeys.includes(key);
-            });
+          if (old) {
+            var needDelete;
+
+            if (children) {
+              var newKeys = keys$2(children);
+
+              needDelete = keys$2(old).filter(function (key) {
+                return !newKeys.includes(key);
+              });
+            } else {
+              needDelete = keys$2(old);
+            }
 
             needDelete.forEach(function (key) {
               _this.$delete(key);
             });
           }
 
-          keys$2(children).forEach(function (key) {
-            if (old && old.children && old.children[key]) {
-              assign$1(old.children[key], children[key]);
+          if (children) {
+            keys$2(children).forEach(function (key) {
+              if (old && old[key]) {
+                assign$1(_this[key], children[key]);
 
-              children[key] = old.children[key];
-            } else {
-              children[key] = new cls(_this.$vm, children[key], _this.$globalConfig, _this, key, _this.$validation);
-              children[key]._notBaseStarted = true;
+                children[key] = _this[key];
+              } else {
+                children[key] = new cls(_this.$vm, children[key], _this.$globalConfig, _this, key, _this.$validation);
+                children[key]._notBaseStarted = true;
 
-              _this.$vm.$set(_this, key, children[key]);
-            }
-          });
-
-          old = getterResult;
-
-          _this.$vm.$set(_this, '_collectedRules', rules);
-
-          _this.$children = keys$2(children).length > 0 ? children : null;
-
-          values$1(children).forEach(function (c) {
-            if (c._notBaseStarted) {
-              c._baseStart();
-            }
-          });
-
-          if (_this.$validation.$started) {
-            values$1(children).forEach(function (c) {
-              if (!c.$started) {
-                c.start();
+                _this.$vm.$set(_this, key, children[key]);
               }
             });
+
+            _this.$children = keys$2(children).length > 0 ? children : null;
+
+            values$1(children).forEach(function (c) {
+              if (c._notBaseStarted) {
+                c._baseStart();
+              }
+            });
+
+            if (_this.$validation.$started) {
+              values$1(children).forEach(function (c) {
+                if (!c.$started) {
+                  c.$start();
+                }
+              });
+            }
+          } else {
+            _this.$children = null;
           }
         }, {
           immediate: true
         });
+
+        this._baseUnwatches.push(unwatch);
       }
     }, {
       key: "_updateChildren",
       value: function _updateChildren() {
         if (this.$each) {
           this.$isParent = true;
-        } else if (!this.$each && (this.$isParent || this === this.$validation || this.$rules)) {
-          // with $each is updated by watcher
+        } else if (this.$isParent || this === this.$validation || this.$rules) {
+          // is parent
           // validation or with `$rules`
           this.$isParent = true;
           var _iteratorNormalCompletion2 = true;
@@ -4681,9 +4665,9 @@
 
           try {
             for (var _iterator2 = getIterator$1(iterateObjectWithoutDollarDash(this)), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-              var _ref3 = _step2.value;
-              var key = _ref3.key,
-                  value = _ref3.value;
+              var _ref2 = _step2.value;
+              var key = _ref2.key,
+                  value = _ref2.value;
               this.$add(key, value);
             }
           } catch (err) {
@@ -4700,6 +4684,8 @@
               }
             }
           }
+        } else {
+          this.$isParent = false;
         }
       }
     }, {
@@ -4744,13 +4730,26 @@
       value: function _watchForRules() {
         var _this3 = this;
 
-        var unwatch = this.$vm.$watch(function () {
+        var unwatch = cls.watchAsync(this.$vm, function (exec) {
           var rulesForRequired = [];
           var rulesForValid = [];
           var rules;
 
-          if (_this3.$each || _this3.$rules || _this3 === _this3.$validation) {
-            rules = _this3.$rules || {};
+          if (exec(function () {
+            return _this3.$each || _this3.$isParent || _this3.$rules || _this3 === _this3.$validation;
+          })) {
+            rules = _this3.$rules;
+
+            if (isFunction(rules)) {
+              rules = exec(function () {
+                return rules(_this3);
+              });
+            } else if (rules) {
+              // clone
+              rules = assign$1({}, rules);
+            } else {
+              rules = {};
+            }
           } else {
             // end field
             rules = {};
@@ -4759,11 +4758,18 @@
             var _iteratorError3 = undefined;
 
             try {
-              for (var _iterator3 = getIterator$1(iterateObjectWithoutDollarDash(_this3)), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
-                var _ref5 = _step3.value;
-                var key = _ref5.key,
-                    value = _ref5.value;
+              var _loop = function _loop() {
+                var _ref3 = _step3.value;
+                var key = _ref3.key,
+                    value = _ref3.value;
+                exec(function () {
+                  return _this3[key];
+                });
                 rules[key] = value;
+              };
+
+              for (var _iterator3 = getIterator$1(iterateObjectWithoutDollarDash(_this3)), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
+                _loop();
               }
             } catch (err) {
               _didIteratorError3 = true;
@@ -4781,169 +4787,175 @@
             }
           }
 
-          var _loop = function _loop(name) {
-            var ruleInfo = rules[name];
-
-            if (!isObject(ruleInfo)) {
-              ruleInfo = {
-                params: isArray$2(ruleInfo) ? ruleInfo : [ruleInfo]
-              };
-            } // resolve type
-
-
-            var type = 'valid';
-
-            if (ruleInfo.hasOwnProperty('type')) {
-              type = ruleInfo.type;
-            } else if (_this3.$globalConfig.rules[name]) {
-              type = _this3.$globalConfig.rules[name].type;
-            }
-
-            var wrappedRule = {
-              name: name,
-              params: ruleInfo.params,
-              type: type,
-              handler: function handler(exec) {
-                var ruleHandler = ruleInfo.handler || _this3.$globalConfig.rules[name] && _this3.$globalConfig.rules[name].handler;
-
-                if (!ruleHandler) {
-                  var e = new Error("No handler found for rule '".concat(name, "' in field ").concat(_this3.$name, "."));
-                  e.name = 'no_handler';
-                  throw e;
-                }
-
-                var onSystemError = function onSystemError(e) {
-                  console.warn("System error when validate field '".concat(_this3.$name, "' rule '").concat(name, "'."), e);
-                  var systemErrorMessage = _this3.$globalConfig.systemErrorMessage;
-                  return {
-                    validateResult: false,
-                    error: e,
-                    message: systemErrorMessage
-                  };
-                };
-
-                try {
-                  var ruleReturn = ruleHandler(_this3.$value, ruleInfo.params, _this3, exec);
-
-                  if (isPromise(ruleReturn)) {
-                    return ruleReturn.catch(function (e) {
-                      return onSystemError(e);
-                    });
-                  } else {
-                    return ruleReturn;
-                  }
-                } catch (e) {
-                  return onSystemError(e);
-                }
-              },
-              message: function () {
-                var _message = _asyncToGenerator(
-                /*#__PURE__*/
-                regeneratorRuntime.mark(function _callee3(ruleReturn) {
-                  var resolveMessage, messageTpl, message, i, param, reg;
-                  return regeneratorRuntime.wrap(function _callee3$(_context3) {
-                    while (1) {
-                      switch (_context3.prev = _context3.next) {
-                        case 0:
-                          // convert message to str from str, function, null
-                          resolveMessage =
-                          /*#__PURE__*/
-                          function () {
-                            var _ref6 = _asyncToGenerator(
-                            /*#__PURE__*/
-                            regeneratorRuntime.mark(function _callee2(message) {
-                              return regeneratorRuntime.wrap(function _callee2$(_context2) {
-                                while (1) {
-                                  switch (_context2.prev = _context2.next) {
-                                    case 0:
-                                      if (!isFunction(message)) {
-                                        _context2.next = 4;
-                                        break;
-                                      }
-
-                                      _context2.next = 3;
-                                      return message(_this3.$value, ruleInfo.params, _this3, ruleReturn);
-
-                                    case 3:
-                                      message = _context2.sent;
-
-                                    case 4:
-                                      return _context2.abrupt("return", message);
-
-                                    case 5:
-                                    case "end":
-                                      return _context2.stop();
-                                  }
-                                }
-                              }, _callee2, this);
-                            }));
-
-                            return function resolveMessage(_x3) {
-                              return _ref6.apply(this, arguments);
-                            };
-                          }(); //
-                          // get message from config
-
-
-                          messageTpl = ruleInfo.message || _this3.$globalConfig.rules[name] && _this3.$globalConfig.rules[name].message;
-
-                          if (!messageTpl) {
-                            // get message from parent defaultMessage
-                            messageTpl = _this3.$globalConfig.defaultMessage;
-                          } // compile message
-
-
-                          _context3.next = 5;
-                          return resolveMessage(messageTpl);
-
-                        case 5:
-                          messageTpl = _context3.sent;
-                          message = messageTpl.replace(/:name/g, _this3.$name).replace(/:value/g, _this3.$value);
-
-                          if (ruleInfo.params) {
-                            for (i = 0; i < ruleInfo.params.length; i++) {
-                              param = ruleInfo.params[i];
-                              reg = new RegExp(':params\\[' + i + '\\]', 'g');
-                              message = message.replace(reg, param);
-                            }
-                          }
-
-                          return _context3.abrupt("return", message);
-
-                        case 9:
-                        case "end":
-                          return _context3.stop();
-                      }
-                    }
-                  }, _callee3, this);
-                }));
-
-                function message(_x2) {
-                  return _message.apply(this, arguments);
-                }
-
-                return message;
-              }()
-            };
-
-            if (wrappedRule.type === 'required') {
-              rulesForRequired.push(wrappedRule);
-            } else {
-              rulesForValid.push(wrappedRule);
-            }
-
-            rules[name] = wrappedRule;
-          };
-
-          for (var name in rules) {
-            _loop(name);
+          if (!rules || keys$2(rules).length === 0) {
+            return;
           }
 
-          return {
-            required: rulesForRequired,
-            valid: rulesForValid,
-            rules: rules
-          };
+          return exec(function () {
+            var _loop2 = function _loop2(name) {
+              var ruleInfo = rules[name];
+
+              if (!isObject(ruleInfo)) {
+                ruleInfo = {
+                  params: isArray$2(ruleInfo) ? ruleInfo : [ruleInfo]
+                };
+              } // resolve type
+
+
+              var type = 'valid';
+
+              if (ruleInfo.hasOwnProperty('type')) {
+                type = ruleInfo.type;
+              } else if (_this3.$globalConfig.rules[name]) {
+                type = _this3.$globalConfig.rules[name].type;
+              }
+
+              var wrappedRule = {
+                name: name,
+                params: ruleInfo.params,
+                type: type,
+                handler: function handler(exec) {
+                  var ruleHandler = ruleInfo.handler || _this3.$globalConfig.rules[name] && _this3.$globalConfig.rules[name].handler;
+
+                  if (!ruleHandler) {
+                    var e = new Error("No handler found for rule '".concat(name, "' in field ").concat(_this3.$name, "."));
+                    e.name = 'no_handler';
+                    throw e;
+                  }
+
+                  var onSystemError = function onSystemError(e) {
+                    console.warn("System error when validate field '".concat(_this3.$name, "' rule '").concat(name, "'."), e);
+                    var systemErrorMessage = _this3.$globalConfig.systemErrorMessage;
+                    return {
+                      __validate: false,
+                      error: e,
+                      message: systemErrorMessage
+                    };
+                  };
+
+                  try {
+                    var ruleReturn = ruleHandler(_this3.$value, ruleInfo.params, _this3, exec);
+
+                    if (isPromise(ruleReturn)) {
+                      return ruleReturn.catch(function (e) {
+                        return onSystemError(e);
+                      });
+                    } else {
+                      return ruleReturn;
+                    }
+                  } catch (e) {
+                    return onSystemError(e);
+                  }
+                },
+                message: function () {
+                  var _message = _asyncToGenerator(
+                  /*#__PURE__*/
+                  regeneratorRuntime.mark(function _callee2(ruleReturn) {
+                    var resolveMessage, messageTpl, message, i, param, reg;
+                    return regeneratorRuntime.wrap(function _callee2$(_context2) {
+                      while (1) {
+                        switch (_context2.prev = _context2.next) {
+                          case 0:
+                            // convert message to str from str, function, null
+                            resolveMessage =
+                            /*#__PURE__*/
+                            function () {
+                              var _ref4 = _asyncToGenerator(
+                              /*#__PURE__*/
+                              regeneratorRuntime.mark(function _callee(message) {
+                                return regeneratorRuntime.wrap(function _callee$(_context) {
+                                  while (1) {
+                                    switch (_context.prev = _context.next) {
+                                      case 0:
+                                        if (!isFunction(message)) {
+                                          _context.next = 4;
+                                          break;
+                                        }
+
+                                        _context.next = 3;
+                                        return message(_this3.$value, ruleInfo.params, _this3, ruleReturn);
+
+                                      case 3:
+                                        message = _context.sent;
+
+                                      case 4:
+                                        return _context.abrupt("return", message);
+
+                                      case 5:
+                                      case "end":
+                                        return _context.stop();
+                                    }
+                                  }
+                                }, _callee, this);
+                              }));
+
+                              return function resolveMessage(_x2) {
+                                return _ref4.apply(this, arguments);
+                              };
+                            }(); //
+                            // get message from config
+
+
+                            messageTpl = ruleInfo.message || _this3.$globalConfig.rules[name] && _this3.$globalConfig.rules[name].message;
+
+                            if (!messageTpl) {
+                              // get message from parent defaultMessage
+                              messageTpl = _this3.$globalConfig.defaultMessage;
+                            } // compile message
+
+
+                            _context2.next = 5;
+                            return resolveMessage(messageTpl);
+
+                          case 5:
+                            messageTpl = _context2.sent;
+                            message = messageTpl.replace(/:name/g, _this3.$name).replace(/:value/g, _this3.$value);
+
+                            if (ruleInfo.params) {
+                              for (i = 0; i < ruleInfo.params.length; i++) {
+                                param = ruleInfo.params[i];
+                                reg = new RegExp(':params\\[' + i + '\\]', 'g');
+                                message = message.replace(reg, param);
+                              }
+                            }
+
+                            return _context2.abrupt("return", message);
+
+                          case 9:
+                          case "end":
+                            return _context2.stop();
+                        }
+                      }
+                    }, _callee2, this);
+                  }));
+
+                  function message(_x) {
+                    return _message.apply(this, arguments);
+                  }
+
+                  return message;
+                }()
+              };
+
+              if (wrappedRule.type === 'required') {
+                rulesForRequired.push(wrappedRule);
+              } else {
+                rulesForValid.push(wrappedRule);
+              }
+
+              rules[name] = wrappedRule;
+            };
+
+            for (var name in rules) {
+              _loop2(name);
+            }
+
+            return {
+              required: rulesForRequired,
+              valid: rulesForValid,
+              rules: rules
+            };
+          });
         }, function (result) {
           if (!result) {
             _this3._rules = {};
@@ -4989,20 +5001,22 @@
 
         this._unwatches = [];
 
-        values$1(this.$children).forEach(function (c) {
-          return c.$stop();
-        });
+        if (this.$children) {
+          values$1(this.$children).forEach(function (childField) {
+            childField.$stop();
+          });
+        }
 
         this.$started = false;
       } // advanced watch ===============
-      // watch and auto update `dirty`, `inputting`, `valid`, `validating`
+      // watch and auto update `dirty`, `inputting`, `valid`, `validating`, `ignore`
 
     }, {
       key: "_watchForStatus",
       value: function _watchForStatus() {
         var _this4 = this;
 
-        var unwatch; // computed status: $dirty, $inputting, $valid, $validating
+        var unwatch; // computed status: $dirty, $inputting, $valid, $validating, $ignore
 
         unwatch = this.$vm.$watch(function () {
           return _this4._dirty || _this4.$children && values$1(_this4.$children).find(function (c) {
@@ -5029,6 +5043,18 @@
         this._unwatches.push(unwatch);
 
         unwatch = this.$vm.$watch(function () {
+          return _this4._valid && (!_this4.$children || values$1(_this4.$children).every(function (c) {
+            return c.$valid;
+          }));
+        }, function (value) {
+          _this4.$valid = Boolean(value);
+        }, {
+          immediate: true
+        });
+
+        this._unwatches.push(unwatch);
+
+        unwatch = this.$vm.$watch(function () {
           return _this4._validating || _this4.$children && values$1(_this4.$children).find(function (c) {
             return c.$validating;
           });
@@ -5041,11 +5067,25 @@
         this._unwatches.push(unwatch);
 
         unwatch = this.$vm.$watch(function () {
-          return _this4._valid && (!_this4.$children || values$1(_this4.$children).every(function (c) {
-            return c.$valid;
-          }));
+          return _this4.$ignoreIf && _this4.$ignoreIf(_this4);
         }, function (value) {
-          _this4.$valid = Boolean(value);
+          _this4._ignore = Boolean(value);
+        }, {
+          immediate: true
+        });
+
+        this._unwatches.push(unwatch);
+
+        unwatch = this.$vm.$watch(function () {
+          if (cls.findParent(_this4, function (field) {
+            return field._ignore;
+          })) {
+            return true;
+          }
+
+          return _this4._ignore;
+        }, function (value) {
+          _this4.$ignore = Boolean(value);
         }, {
           immediate: true
         });
@@ -5088,7 +5128,6 @@
             }
           }
         }, {
-          immediate: true,
           deep: this.$deep
         });
 
@@ -5104,37 +5143,60 @@
         var unwatch = cls.watchAsync(this.$vm,
         /*#__PURE__*/
         function () {
-          var _ref7 = _asyncToGenerator(
+          var _ref5 = _asyncToGenerator(
           /*#__PURE__*/
-          regeneratorRuntime.mark(function _callee4(exec) {
-            var id, rules, rulesRequired, rulesValid, required, valid, reasons, _loop2, i, _ret, _iteratorNormalCompletion4, _didIteratorError4, _iteratorError4, _loop3, _iterator4, _step4, _ret2;
+          regeneratorRuntime.mark(function _callee3(exec) {
+            var id, rules, rulesRequired, rulesValid, required, valid, reasons, _loop3, i, _ret, _iteratorNormalCompletion4, _didIteratorError4, _iteratorError4, _loop4, _iterator4, _step4, _ret2;
 
-            return regeneratorRuntime.wrap(function _callee4$(_context6) {
+            return regeneratorRuntime.wrap(function _callee3$(_context5) {
               while (1) {
-                switch (_context6.prev = _context6.next) {
+                switch (_context5.prev = _context5.next) {
                   case 0:
                     validateId++;
                     id = validateId;
+                    exec(function () {
+                      return _this5._rules;
+                    });
                     rules = _this5._rules;
+                    exec(function () {
+                      return _this5._rulesForRequired;
+                    });
                     rulesRequired = _this5._rulesForRequired;
+                    exec(function () {
+                      return _this5._rulesForValid;
+                    });
                     rulesValid = _this5._rulesForValid;
                     required = false;
                     valid = true;
                     reasons = [];
                     exec(function () {
+                      return _this5.$ignore;
+                    });
+
+                    if (!_this5.$ignore) {
+                      _context5.next = 14;
+                      break;
+                    }
+
+                    return _context5.abrupt("return", {
+                      ignore: true
+                    });
+
+                  case 14:
+                    exec(function () {
                       return _this5.$inputting;
                     });
 
                     if (!_this5.$inputting) {
-                      _context6.next = 11;
+                      _context5.next = 17;
                       break;
                     }
 
-                    return _context6.abrupt("return", {
+                    return _context5.abrupt("return", {
                       inputting: true
                     });
 
-                  case 11:
+                  case 17:
                     // observe $value
                     exec(function () {
                       return _this5.$value;
@@ -5143,15 +5205,168 @@
                     });
                     _this5._validating = true; // check required
 
-                    _loop2 =
+                    _loop3 =
                     /*#__PURE__*/
-                    regeneratorRuntime.mark(function _loop2(i) {
+                    regeneratorRuntime.mark(function _loop3(i) {
                       var rule, t, ruleReturn;
-                      return regeneratorRuntime.wrap(function _loop2$(_context4) {
+                      return regeneratorRuntime.wrap(function _loop3$(_context3) {
+                        while (1) {
+                          switch (_context3.prev = _context3.next) {
+                            case 0:
+                              rule = rulesRequired[i];
+                              exec(function () {
+                                return rule.handler;
+                              });
+                              t = rule.handler(exec);
+
+                              if (isPromise(t) && _this5.$globalConfig.timeout) {
+                                t = promiseTimeout(t, _this5.$globalConfig.timeout);
+                              }
+
+                              _context3.next = 6;
+                              return t;
+
+                            case 6:
+                              ruleReturn = _context3.sent;
+
+                              if (!(id !== validateId)) {
+                                _context3.next = 9;
+                                break;
+                              }
+
+                              return _context3.abrupt("return", {
+                                v: {
+                                  expired: true
+                                }
+                              });
+
+                            case 9:
+                              if (ruleReturn.hasOwnProperty('__validate')) {
+                                required = ruleReturn.__validate;
+                                ruleReturn = ruleReturn.value;
+                              } else {
+                                required = Boolean(ruleReturn);
+                              }
+
+                              if (!(i === rulesRequired.length - 1)) {
+                                _context3.next = 18;
+                                break;
+                              }
+
+                              // last rule
+                              exec(function () {
+                                return _this5.$empty;
+                              });
+
+                              if (!(required && _this5.$empty)) {
+                                _context3.next = 18;
+                                break;
+                              }
+
+                              valid = false;
+                              reasons.push({
+                                ruleReturn: ruleReturn,
+                                rule: rule
+                              });
+                              exec(function () {
+                                return _this5.$globalConfig.bail;
+                              });
+
+                              if (!_this5.$globalConfig.bail) {
+                                _context3.next = 18;
+                                break;
+                              }
+
+                              return _context3.abrupt("return", {
+                                v: {
+                                  required: required,
+                                  valid: valid,
+                                  reasons: reasons,
+                                  id: id
+                                }
+                              });
+
+                            case 18:
+                            case "end":
+                              return _context3.stop();
+                          }
+                        }
+                      }, _loop3, this);
+                    });
+                    i = 0;
+
+                  case 21:
+                    if (!(i < rulesRequired.length)) {
+                      _context5.next = 29;
+                      break;
+                    }
+
+                    return _context5.delegateYield(_loop3(i), "t0", 23);
+
+                  case 23:
+                    _ret = _context5.t0;
+
+                    if (!(_typeof(_ret) === "object")) {
+                      _context5.next = 26;
+                      break;
+                    }
+
+                    return _context5.abrupt("return", _ret.v);
+
+                  case 26:
+                    i++;
+                    _context5.next = 21;
+                    break;
+
+                  case 29:
+                    exec(function () {
+                      return _this5._dirty;
+                    });
+
+                    if (_this5._dirty) {
+                      _context5.next = 32;
+                      break;
+                    }
+
+                    return _context5.abrupt("return", {
+                      required: required,
+                      valid: valid,
+                      reasons: reasons,
+                      id: id
+                    });
+
+                  case 32:
+                    exec(function () {
+                      return !required && _this5.$empty && _this5.$globalConfig.bail;
+                    });
+
+                    if (!(!required && _this5.$empty && _this5.$globalConfig.bail)) {
+                      _context5.next = 36;
+                      break;
+                    }
+
+                    valid = true;
+                    return _context5.abrupt("return", {
+                      required: required,
+                      valid: valid,
+                      id: id
+                    });
+
+                  case 36:
+                    // check valid
+                    _iteratorNormalCompletion4 = true;
+                    _didIteratorError4 = false;
+                    _iteratorError4 = undefined;
+                    _context5.prev = 39;
+                    _loop4 =
+                    /*#__PURE__*/
+                    regeneratorRuntime.mark(function _loop4() {
+                      var rule, t, ruleReturn;
+                      return regeneratorRuntime.wrap(function _loop4$(_context4) {
                         while (1) {
                           switch (_context4.prev = _context4.next) {
                             case 0:
-                              rule = rulesRequired[i];
+                              rule = _step4.value;
                               exec(function () {
                                 return rule.handler;
                               });
@@ -5179,26 +5394,18 @@
                               });
 
                             case 9:
-                              if (ruleReturn || ruleReturn.validateResult) {
-                                required = true;
+                              if (ruleReturn.hasOwnProperty('__validate')) {
+                                valid = ruleReturn.__validate;
+                                ruleReturn = ruleReturn.value;
+                              } else {
+                                valid = Boolean(ruleReturn);
                               }
 
-                              if (!(i === rulesRequired.length - 1)) {
-                                _context4.next = 18;
+                              if (valid) {
+                                _context4.next = 15;
                                 break;
                               }
 
-                              // last rule
-                              exec(function () {
-                                return _this5.$empty;
-                              });
-
-                              if (!(required && _this5.$empty)) {
-                                _context4.next = 18;
-                                break;
-                              }
-
-                              valid = false;
                               reasons.push({
                                 ruleReturn: ruleReturn,
                                 rule: rule
@@ -5208,7 +5415,7 @@
                               });
 
                               if (!_this5.$globalConfig.bail) {
-                                _context4.next = 18;
+                                _context4.next = 15;
                                 break;
                               }
 
@@ -5221,320 +5428,220 @@
                                 }
                               });
 
-                            case 18:
+                            case 15:
                             case "end":
                               return _context4.stop();
                           }
                         }
-                      }, _loop2, this);
-                    });
-                    i = 0;
-
-                  case 15:
-                    if (!(i < rulesRequired.length)) {
-                      _context6.next = 23;
-                      break;
-                    }
-
-                    return _context6.delegateYield(_loop2(i), "t0", 17);
-
-                  case 17:
-                    _ret = _context6.t0;
-
-                    if (!(_typeof(_ret) === "object")) {
-                      _context6.next = 20;
-                      break;
-                    }
-
-                    return _context6.abrupt("return", _ret.v);
-
-                  case 20:
-                    i++;
-                    _context6.next = 15;
-                    break;
-
-                  case 23:
-                    exec(function () {
-                      return _this5._dirty;
-                    });
-
-                    if (_this5._dirty) {
-                      _context6.next = 26;
-                      break;
-                    }
-
-                    return _context6.abrupt("return", {
-                      required: required,
-                      valid: valid,
-                      reasons: reasons,
-                      id: id
-                    });
-
-                  case 26:
-                    // check valid
-                    _iteratorNormalCompletion4 = true;
-                    _didIteratorError4 = false;
-                    _iteratorError4 = undefined;
-                    _context6.prev = 29;
-                    _loop3 =
-                    /*#__PURE__*/
-                    regeneratorRuntime.mark(function _loop3() {
-                      var rule, t, ruleReturn;
-                      return regeneratorRuntime.wrap(function _loop3$(_context5) {
-                        while (1) {
-                          switch (_context5.prev = _context5.next) {
-                            case 0:
-                              rule = _step4.value;
-                              exec(function () {
-                                return rule.handler;
-                              });
-                              t = rule.handler(exec);
-
-                              if (isPromise(t) && _this5.$globalConfig.timeout) {
-                                t = promiseTimeout(t, _this5.$globalConfig.timeout);
-                              }
-
-                              _context5.next = 6;
-                              return t;
-
-                            case 6:
-                              ruleReturn = _context5.sent;
-
-                              if (!(id !== validateId)) {
-                                _context5.next = 9;
-                                break;
-                              }
-
-                              return _context5.abrupt("return", {
-                                v: {
-                                  expired: true
-                                }
-                              });
-
-                            case 9:
-                              if (!(!ruleReturn || ruleReturn.hasOwnProperty('validateResult') && !ruleReturn.validateResult)) {
-                                _context5.next = 15;
-                                break;
-                              }
-
-                              valid = false;
-                              reasons.push({
-                                ruleReturn: ruleReturn,
-                                rule: rule
-                              });
-                              exec(function () {
-                                return _this5.$globalConfig.bail;
-                              });
-
-                              if (!_this5.$globalConfig.bail) {
-                                _context5.next = 15;
-                                break;
-                              }
-
-                              return _context5.abrupt("return", {
-                                v: {
-                                  required: required,
-                                  valid: valid,
-                                  reasons: reasons,
-                                  id: id
-                                }
-                              });
-
-                            case 15:
-                            case "end":
-                              return _context5.stop();
-                          }
-                        }
-                      }, _loop3, this);
+                      }, _loop4, this);
                     });
                     _iterator4 = getIterator$1(rulesValid);
 
-                  case 32:
+                  case 42:
                     if (_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done) {
-                      _context6.next = 40;
+                      _context5.next = 50;
                       break;
                     }
 
-                    return _context6.delegateYield(_loop3(), "t1", 34);
+                    return _context5.delegateYield(_loop4(), "t1", 44);
 
-                  case 34:
-                    _ret2 = _context6.t1;
+                  case 44:
+                    _ret2 = _context5.t1;
 
                     if (!(_typeof(_ret2) === "object")) {
-                      _context6.next = 37;
+                      _context5.next = 47;
                       break;
                     }
 
-                    return _context6.abrupt("return", _ret2.v);
+                    return _context5.abrupt("return", _ret2.v);
 
-                  case 37:
+                  case 47:
                     _iteratorNormalCompletion4 = true;
-                    _context6.next = 32;
+                    _context5.next = 42;
                     break;
 
-                  case 40:
-                    _context6.next = 46;
+                  case 50:
+                    _context5.next = 56;
                     break;
 
-                  case 42:
-                    _context6.prev = 42;
-                    _context6.t2 = _context6["catch"](29);
+                  case 52:
+                    _context5.prev = 52;
+                    _context5.t2 = _context5["catch"](39);
                     _didIteratorError4 = true;
-                    _iteratorError4 = _context6.t2;
+                    _iteratorError4 = _context5.t2;
 
-                  case 46:
-                    _context6.prev = 46;
-                    _context6.prev = 47;
+                  case 56:
+                    _context5.prev = 56;
+                    _context5.prev = 57;
 
                     if (!_iteratorNormalCompletion4 && _iterator4.return != null) {
                       _iterator4.return();
                     }
 
-                  case 49:
-                    _context6.prev = 49;
+                  case 59:
+                    _context5.prev = 59;
 
                     if (!_didIteratorError4) {
-                      _context6.next = 52;
+                      _context5.next = 62;
                       break;
                     }
 
                     throw _iteratorError4;
 
-                  case 52:
-                    return _context6.finish(49);
+                  case 62:
+                    return _context5.finish(59);
 
-                  case 53:
-                    return _context6.finish(46);
+                  case 63:
+                    return _context5.finish(56);
 
-                  case 54:
-                    return _context6.abrupt("return", {
+                  case 64:
+                    return _context5.abrupt("return", {
                       required: required,
                       valid: valid,
                       reasons: reasons,
                       id: id
                     });
 
-                  case 55:
+                  case 65:
                   case "end":
-                    return _context6.stop();
+                    return _context5.stop();
                 }
               }
-            }, _callee4, this, [[29, 42, 46, 54], [47,, 49, 53]]);
+            }, _callee3, this, [[39, 52, 56, 64], [57,, 59, 63]]);
           }));
 
-          return function (_x4) {
-            return _ref7.apply(this, arguments);
+          return function (_x3) {
+            return _ref5.apply(this, arguments);
           };
         }(),
         /*#__PURE__*/
         function () {
-          var _ref8 = _asyncToGenerator(
+          var _ref6 = _asyncToGenerator(
           /*#__PURE__*/
-          regeneratorRuntime.mark(function _callee5(value, old) {
-            var errors, _iteratorNormalCompletion5, _didIteratorError5, _iteratorError5, _iterator5, _step5, _ref10, ruleReturn, rule, message;
+          regeneratorRuntime.mark(function _callee4(value, old) {
+            var _errors, errors, _iteratorNormalCompletion5, _didIteratorError5, _iteratorError5, _iterator5, _step5, _ref8, ruleReturn, rule, message;
 
-            return regeneratorRuntime.wrap(function _callee5$(_context7) {
+            return regeneratorRuntime.wrap(function _callee4$(_context6) {
               while (1) {
-                switch (_context7.prev = _context7.next) {
+                switch (_context6.prev = _context6.next) {
                   case 0:
                     if (!(value.inputting || value.expired)) {
-                      _context7.next = 2;
+                      _context6.next = 2;
                       break;
                     }
 
-                    return _context7.abrupt("return");
+                    return _context6.abrupt("return");
 
                   case 2:
+                    if (!value.ignore) {
+                      _context6.next = 9;
+                      break;
+                    }
+
+                    _this5.$required = false;
+                    _this5._valid = true;
+                    _errors = [];
+                    _this5._errors = _errors;
+                    _this5._validating = false;
+                    return _context6.abrupt("return");
+
+                  case 9:
                     _this5.$required = value.required;
                     _this5._valid = value.valid;
                     errors = [];
+
+                    if (!value.reasons) {
+                      _context6.next = 44;
+                      break;
+                    }
+
                     _iteratorNormalCompletion5 = true;
                     _didIteratorError5 = false;
                     _iteratorError5 = undefined;
-                    _context7.prev = 8;
+                    _context6.prev = 16;
                     _iterator5 = getIterator$1(value.reasons);
 
-                  case 10:
+                  case 18:
                     if (_iteratorNormalCompletion5 = (_step5 = _iterator5.next()).done) {
-                      _context7.next = 22;
+                      _context6.next = 30;
                       break;
                     }
 
-                    _ref10 = _step5.value;
-                    ruleReturn = _ref10.ruleReturn, rule = _ref10.rule;
-                    _context7.next = 15;
+                    _ref8 = _step5.value;
+                    ruleReturn = _ref8.ruleReturn, rule = _ref8.rule;
+                    _context6.next = 23;
                     return rule.message(ruleReturn);
 
-                  case 15:
-                    message = _context7.sent;
+                  case 23:
+                    message = _context6.sent;
 
                     if (!(value.id !== validateId)) {
-                      _context7.next = 18;
+                      _context6.next = 26;
                       break;
                     }
 
-                    return _context7.abrupt("return");
+                    return _context6.abrupt("return");
 
-                  case 18:
+                  case 26:
                     errors.push({
                       field: _this5,
                       ruleName: rule.name,
                       message: message
                     });
 
-                  case 19:
+                  case 27:
                     _iteratorNormalCompletion5 = true;
-                    _context7.next = 10;
+                    _context6.next = 18;
                     break;
 
-                  case 22:
-                    _context7.next = 28;
+                  case 30:
+                    _context6.next = 36;
                     break;
 
-                  case 24:
-                    _context7.prev = 24;
-                    _context7.t0 = _context7["catch"](8);
+                  case 32:
+                    _context6.prev = 32;
+                    _context6.t0 = _context6["catch"](16);
                     _didIteratorError5 = true;
-                    _iteratorError5 = _context7.t0;
+                    _iteratorError5 = _context6.t0;
 
-                  case 28:
-                    _context7.prev = 28;
-                    _context7.prev = 29;
+                  case 36:
+                    _context6.prev = 36;
+                    _context6.prev = 37;
 
                     if (!_iteratorNormalCompletion5 && _iterator5.return != null) {
                       _iterator5.return();
                     }
 
-                  case 31:
-                    _context7.prev = 31;
+                  case 39:
+                    _context6.prev = 39;
 
                     if (!_didIteratorError5) {
-                      _context7.next = 34;
+                      _context6.next = 42;
                       break;
                     }
 
                     throw _iteratorError5;
 
-                  case 34:
-                    return _context7.finish(31);
+                  case 42:
+                    return _context6.finish(39);
 
-                  case 35:
-                    return _context7.finish(28);
+                  case 43:
+                    return _context6.finish(36);
 
-                  case 36:
+                  case 44:
                     _this5._errors = errors;
                     _this5._validating = false;
 
-                  case 38:
+                  case 46:
                   case "end":
-                    return _context7.stop();
+                    return _context6.stop();
                 }
               }
-            }, _callee5, this, [[8, 24, 28, 36], [29,, 31, 35]]);
+            }, _callee4, this, [[16, 32, 36, 44], [37,, 39, 43]]);
           }));
 
-          return function (_x5, _x6) {
-            return _ref8.apply(this, arguments);
+          return function (_x4, _x5) {
+            return _ref6.apply(this, arguments);
           };
         }(), {
           immediate: true
@@ -5643,22 +5750,45 @@
         return new promise$1(function (resolve, reject) {
           var unwatch = _this6.$vm.$watch(function () {
             return _this6.$validating;
-          }, function (validating) {
-            // use setTimeout to delay immediate watch, else unwatch is not ready
-            setTimeout(function () {
-              if (!validating) {
-                unwatch();
+          },
+          /*#__PURE__*/
+          function () {
+            var _ref9 = _asyncToGenerator(
+            /*#__PURE__*/
+            regeneratorRuntime.mark(function _callee5(validating) {
+              var e;
+              return regeneratorRuntime.wrap(function _callee5$(_context7) {
+                while (1) {
+                  switch (_context7.prev = _context7.next) {
+                    case 0:
+                      _context7.next = 2;
+                      return waitTime(0);
 
-                if (_this6.$valid) {
-                  resolve(_this6);
-                } else {
-                  var e = new Error('Invalid input.');
-                  e.name = 'invalid';
-                  reject(e);
+                    case 2:
+                      if (!validating) {
+                        unwatch();
+
+                        if (_this6.$valid) {
+                          resolve(_this6);
+                        } else {
+                          e = new Error('Invalid input.');
+                          e.name = 'invalid';
+                          reject(e);
+                        }
+                      }
+
+                    case 3:
+                    case "end":
+                      return _context7.stop();
+                  }
                 }
-              }
-            }, 0);
-          }, {
+              }, _callee5, this);
+            }));
+
+            return function (_x6) {
+              return _ref9.apply(this, arguments);
+            };
+          }(), {
             immediate: true
           });
         });
