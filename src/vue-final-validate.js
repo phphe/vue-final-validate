@@ -549,8 +549,11 @@ export class VueFinalValidateField {
     const unwatch = cls.watchAsync(this.$vm, async (exec) => {
       validateId++
       const id = validateId
+      exec(() => this._rules)
       const rules = this._rules
+      exec(() => this._rulesForRequired)
       const rulesRequired = this._rulesForRequired
+      exec(() => this._rulesForValid)
       const rulesValid = this._rulesForValid
       let required = false
       let valid = true
@@ -602,6 +605,11 @@ export class VueFinalValidateField {
         // stop validate if not dirty
         return {required, valid, reasons, id}
       }
+      exec(() => !required && this.$empty && this.$globalConfig.bail)
+      if (!required && this.$empty && this.$globalConfig.bail) {
+        valid = true
+        return {required, valid, id}
+      }
       // check valid
       for (const rule of rulesValid) {
         exec(() => rule.handler)
@@ -644,12 +652,14 @@ export class VueFinalValidateField {
       this.$required = value.required
       this._valid = value.valid
       const errors = []
-      for (const {ruleReturn, rule} of value.reasons) {
-        const message = await rule.message(ruleReturn)
-        if (value.id !== validateId) {
-          return
+      if (value.reasons) {
+        for (const {ruleReturn, rule} of value.reasons) {
+          const message = await rule.message(ruleReturn)
+          if (value.id !== validateId) {
+            return
+          }
+          errors.push({field: this, ruleName: rule.name, message})
         }
-        errors.push({field: this, ruleName: rule.name, message})
       }
       this._errors = errors
       this._validating = false
