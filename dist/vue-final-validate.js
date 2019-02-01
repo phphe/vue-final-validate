@@ -1,5 +1,5 @@
 /*!
- * vue-final-validate v0.0.0-beta.2
+ * vue-final-validate v1.0.0
  * (c) 2017-present phphe <phphe@outlook.com>
  * Released under the MIT License.
  */
@@ -483,6 +483,8 @@
       if (IteratorPrototype !== Object.prototype && IteratorPrototype.next) {
         // Set @@toStringTag to native iterators
         _setToStringTag(IteratorPrototype, TAG, true);
+        // fix for some old engines
+        if (!_library && typeof IteratorPrototype[ITERATOR] != 'function') _hide(IteratorPrototype, ITERATOR, returnThis);
       }
     }
     // fix Array#{values, @@iterator}.name in V8 / FF
@@ -491,7 +493,7 @@
       $default = function values() { return $native.call(this); };
     }
     // Define iterator
-    if ((FORCED) && (BUGGY || VALUES_BUG || !proto[ITERATOR])) {
+    if ((!_library || FORCED) && (BUGGY || VALUES_BUG || !proto[ITERATOR])) {
       _hide(proto, ITERATOR, $default);
     }
     // Plug for library
@@ -3161,71 +3163,6 @@
 
   var values$1 = values;
 
-  // 19.1.2.7 Object.getOwnPropertyNames(O)
-  _objectSap('getOwnPropertyNames', function () {
-    return _objectGopnExt.f;
-  });
-
-  var $Object = _core.Object;
-  var getOwnPropertyNames = function getOwnPropertyNames(it) {
-    return $Object.getOwnPropertyNames(it);
-  };
-
-  var getOwnPropertyNames$1 = getOwnPropertyNames;
-
-  var core_getIterator = _core.getIterator = function (it) {
-    var iterFn = core_getIteratorMethod(it);
-    if (typeof iterFn != 'function') throw TypeError(it + ' is not iterable!');
-    return _anObject(iterFn.call(it));
-  };
-
-  var getIterator = core_getIterator;
-
-  var getIterator$1 = getIterator;
-
-  // 19.1.2.1 Object.assign(target, source, ...)
-
-
-
-
-
-  var $assign = Object.assign;
-
-  // should work with symbols and should have deterministic property order (V8 bug)
-  var _objectAssign = !$assign || _fails(function () {
-    var A = {};
-    var B = {};
-    // eslint-disable-next-line no-undef
-    var S = Symbol();
-    var K = 'abcdefghijklmnopqrst';
-    A[S] = 7;
-    K.split('').forEach(function (k) { B[k] = k; });
-    return $assign({}, A)[S] != 7 || Object.keys($assign({}, B)).join('') != K;
-  }) ? function assign(target, source) { // eslint-disable-line no-unused-vars
-    var T = _toObject(target);
-    var aLen = arguments.length;
-    var index = 1;
-    var getSymbols = _objectGops.f;
-    var isEnum = _objectPie.f;
-    while (aLen > index) {
-      var S = _iobject(arguments[index++]);
-      var keys = getSymbols ? _objectKeys(S).concat(getSymbols(S)) : _objectKeys(S);
-      var length = keys.length;
-      var j = 0;
-      var key;
-      while (length > j) if (isEnum.call(S, key = keys[j++])) T[key] = S[key];
-    } return T;
-  } : $assign;
-
-  // 19.1.3.1 Object.assign(target, source)
-
-
-  _export(_export.S + _export.F, 'Object', { assign: _objectAssign });
-
-  var assign = _core.Object.assign;
-
-  var assign$1 = assign;
-
   var _iterStep$1 = function (done, value) {
     return { value: value, done: !!done };
   };
@@ -3468,6 +3405,71 @@
       if (explicit) for (key in es6_array_iterator$1) if (!proto$2[key]) _redefine$1(proto$2, key, es6_array_iterator$1[key], true);
     }
   }
+
+  // 19.1.2.7 Object.getOwnPropertyNames(O)
+  _objectSap('getOwnPropertyNames', function () {
+    return _objectGopnExt.f;
+  });
+
+  var $Object = _core.Object;
+  var getOwnPropertyNames = function getOwnPropertyNames(it) {
+    return $Object.getOwnPropertyNames(it);
+  };
+
+  var getOwnPropertyNames$1 = getOwnPropertyNames;
+
+  var core_getIterator = _core.getIterator = function (it) {
+    var iterFn = core_getIteratorMethod(it);
+    if (typeof iterFn != 'function') throw TypeError(it + ' is not iterable!');
+    return _anObject(iterFn.call(it));
+  };
+
+  var getIterator = core_getIterator;
+
+  var getIterator$1 = getIterator;
+
+  // 19.1.2.1 Object.assign(target, source, ...)
+
+
+
+
+
+  var $assign = Object.assign;
+
+  // should work with symbols and should have deterministic property order (V8 bug)
+  var _objectAssign = !$assign || _fails(function () {
+    var A = {};
+    var B = {};
+    // eslint-disable-next-line no-undef
+    var S = Symbol();
+    var K = 'abcdefghijklmnopqrst';
+    A[S] = 7;
+    K.split('').forEach(function (k) { B[k] = k; });
+    return $assign({}, A)[S] != 7 || Object.keys($assign({}, B)).join('') != K;
+  }) ? function assign(target, source) { // eslint-disable-line no-unused-vars
+    var T = _toObject(target);
+    var aLen = arguments.length;
+    var index = 1;
+    var getSymbols = _objectGops.f;
+    var isEnum = _objectPie.f;
+    while (aLen > index) {
+      var S = _iobject(arguments[index++]);
+      var keys = getSymbols ? _objectKeys(S).concat(getSymbols(S)) : _objectKeys(S);
+      var length = keys.length;
+      var j = 0;
+      var key;
+      while (length > j) if (isEnum.call(S, key = keys[j++])) T[key] = S[key];
+    } return T;
+  } : $assign;
+
+  // 19.1.3.1 Object.assign(target, source)
+
+
+  _export(_export.S + _export.F, 'Object', { assign: _objectAssign });
+
+  var assign = _core.Object.assign;
+
+  var assign$1 = assign;
 
   // true  -> String#at
   // false -> String#codePointAt
@@ -3847,7 +3849,7 @@
   }
 
   /*!
-   * helper-js v1.3.0
+   * helper-js v1.3.1
    * (c) 2018-present phphe <phphe@outlook.com> (https://github.com/phphe)
    * Released under the MIT License.
    */
@@ -4045,6 +4047,26 @@
       }
     }
   } // source: http://stackoverflow.com/questions/8817394/javascript-get-deep-value-from-object-by-passing-path-to-it-as-string
+  function promiseTimeout(promise, timeout) {
+    return new Promise(function (resolve, reject) {
+      var t, rejected;
+      promise.then(function () {
+        clearTimeout(t);
+        resolve.apply(void 0, arguments);
+      }, function () {
+        if (!rejected) {
+          clearTimeout(t);
+          reject.apply(void 0, arguments);
+        }
+      });
+      t = setTimeout(function () {
+        rejected = true;
+        var e = new Error('Promise timeout!');
+        e.name = 'timeout';
+        reject(e);
+      }, timeout);
+    });
+  } // url
 
   function onDOM(el, name, handler) {
     for (var _len5 = arguments.length, args = new Array(_len5 > 3 ? _len5 - 3 : 0), _key6 = 3; _key6 < _len5; _key6++) {
@@ -4284,9 +4306,91 @@
     return CrossWindow;
   }(EventProcessor);
 
-  var _marked =
-  /*#__PURE__*/
-  regeneratorRuntime.mark(iterateObjectWithoutDollarDash);
+  /*!
+   * vue-functions v0.0.7
+   * (c) 2019-present phphe <phphe@outlook.com> (https://github.com/phphe)
+   * Released under the MIT License.
+   */
+
+  function watchAsync(vm, getter, handler, opt) {
+    var destroies = [];
+    var value, oldValue;
+    var count = -1; // updated count
+
+    main();
+    return destroy;
+
+    function destroy() {
+      destroies.forEach(function (f) {
+        return f();
+      });
+      destroies = [];
+    }
+
+    function exec(getter, opt) {
+      var value;
+      var first = true;
+      var unwatch = vm.$watch(function () {
+        return getter.call(vm, exec);
+      }, function (value2) {
+        value = value2;
+
+        if (first) {
+          first = false;
+        } else {
+          main();
+        }
+      }, {
+        immediate: true,
+        deep: opt && opt.deep
+      });
+      destroies.push(unwatch);
+      return value;
+    }
+
+    function main() {
+      destroy();
+      var result = getter.call(vm, exec);
+      count++;
+      var localCount = count;
+      oldValue = value;
+
+      var getterExecuted = function getterExecuted(value) {
+        if (localCount !== count) {
+          // expired
+          return;
+        }
+
+        if (localCount === 0) {
+          if (opt && opt.immediate) {
+            handler.call(vm, value, oldValue);
+          }
+        } else {
+          handler.call(vm, value, oldValue);
+        }
+      }; //
+
+
+      if (isPromise(result)) {
+        result.then(getterExecuted);
+      } else {
+        getterExecuted(result);
+      }
+    }
+  } // do handler first, handler return getter
+  function* iterateObjectWithoutDollarDash(obj) {
+    for (var key in obj) {
+      var start = key.substr(0, 1);
+
+      if (start !== '$' && start !== '_') {
+        yield {
+          key: key,
+          value: obj[key]
+        };
+      }
+    }
+  }
+
   var VueFinalValidateField =
   /*#__PURE__*/
   function () {
@@ -4307,108 +4411,6 @@
           // string or array
           return (value.trim ? value.trim() : value).length === 0;
         }
-      }
-    }, {
-      key: "findParent",
-      value: function findParent$$1(field, handler) {
-        var current = field;
-
-        while (current) {
-          if (handler(current)) {
-            return current;
-          }
-
-          current = current.$parent;
-        }
-      } // the dependences in getter can't be auto resolved. must use exec to include dependences
-
-    }, {
-      key: "watchAsync",
-      value: function watchAsync(vm, getter, handler, opt) {
-        var destroies = [];
-        var value, oldValue;
-        var count = -1; // updated count
-
-        main();
-        return destroy;
-
-        function destroy() {
-          destroies.forEach(function (f) {
-            return f();
-          });
-          destroies = [];
-        }
-
-        function exec(getter, opt) {
-          var value;
-          var first = true;
-          var unwatch = vm.$watch(function () {
-            return getter.call(vm, exec);
-          }, function (value2) {
-            value = value2;
-
-            if (first) {
-              first = false;
-            } else {
-              main();
-            }
-          }, {
-            immediate: true,
-            deep: opt && opt.deep
-          });
-          destroies.push(unwatch);
-          return value;
-        }
-
-        function main() {
-          destroy();
-          var result = getter.call(vm, exec);
-          count++;
-          var localCount = count;
-          oldValue = value;
-
-          var getterExecuted = function getterExecuted(value) {
-            if (localCount !== count) {
-              // expired
-              return;
-            }
-
-            if (localCount === 0) {
-              if (opt && opt.immediate) {
-                handler.call(vm, value, oldValue);
-              }
-            } else {
-              handler.call(vm, value, oldValue);
-            }
-          }; //
-
-
-          if (isPromise(result)) {
-            result.then(getterExecuted);
-          } else {
-            getterExecuted(result);
-          }
-        }
-      } // do handler first, handler return getter
-
-    }, {
-      key: "doWatch",
-      value: function doWatch(vm, handler) {
-        var oldValue, unwatch;
-
-        var update = function update() {
-          var getter = handler.call(vm, oldValue);
-          unwatch = vm.$watch(getter, function (value) {
-            unwatch();
-            oldValue = value;
-            update();
-          });
-        };
-
-        update();
-        return function () {
-          return unwatch && unwatch();
-        };
       } // props --------------
       // $vm,
       // $globalConfig,
@@ -4699,7 +4701,7 @@
           if (_this2.$valueGetter) {
             value = _this2.$valueGetter(_this2);
           } else {
-            var t = cls.findParent(_this2, function (field) {
+            var t = findParent$1(_this2, function (field) {
               return field.$childValueGetter;
             });
             var childValueGetter = t ? t.$childValueGetter : _this2.$globalConfig.childValueGetter;
@@ -4730,7 +4732,7 @@
       value: function _watchForRules() {
         var _this3 = this;
 
-        var unwatch = cls.watchAsync(this.$vm, function (exec) {
+        var unwatch = watchAsync(this.$vm, function (exec) {
           var rulesForRequired = [];
           var rulesForValid = [];
           var rules;
@@ -5077,7 +5079,7 @@
         this._unwatches.push(unwatch);
 
         unwatch = this.$vm.$watch(function () {
-          if (cls.findParent(_this4, function (field) {
+          if (findParent$1(_this4, function (field) {
             return field._ignore;
           })) {
             return true;
@@ -5140,7 +5142,7 @@
         var _this5 = this;
 
         var validateId = -1;
-        var unwatch = cls.watchAsync(this.$vm,
+        var unwatch = watchAsync(this.$vm,
         /*#__PURE__*/
         function () {
           var _ref5 = _asyncToGenerator(
@@ -5217,7 +5219,9 @@
                               exec(function () {
                                 return rule.handler;
                               });
-                              t = rule.handler(exec);
+                              t = exec(function () {
+                                return rule.handler(exec);
+                              });
 
                               if (isPromise(t) && _this5.$globalConfig.timeout) {
                                 t = promiseTimeout(t, _this5.$globalConfig.timeout);
@@ -5892,66 +5896,16 @@
     });
     return validateMethod;
   }
+  function findParent$1(field, handler) {
+    var current = field;
 
-  function promiseTimeout(promise, timeout) {
-    return new promise$1(function (resolve, reject) {
-      var t, rejected;
-      promise.then(function () {
-        clearTimeout(t);
-        resolve.apply(void 0, arguments);
-      }, function () {
-        if (!rejected) {
-          clearTimeout(t);
-          reject.apply(void 0, arguments);
-        }
-      });
-      t = setTimeout(function () {
-        rejected = true;
-        var e = new Error('Promise timeout!');
-        e.name = 'timeout';
-        reject(e);
-      }, timeout);
-    });
-  }
-
-  function iterateObjectWithoutDollarDash(obj) {
-    var key, start;
-    return regeneratorRuntime.wrap(function iterateObjectWithoutDollarDash$(_context8) {
-      while (1) {
-        switch (_context8.prev = _context8.next) {
-          case 0:
-            _context8.t0 = regeneratorRuntime.keys(obj);
-
-          case 1:
-            if ((_context8.t1 = _context8.t0()).done) {
-              _context8.next = 9;
-              break;
-            }
-
-            key = _context8.t1.value;
-            start = key.substr(0, 1);
-
-            if (!(start !== '$' && start !== '_')) {
-              _context8.next = 7;
-              break;
-            }
-
-            _context8.next = 7;
-            return {
-              key: key,
-              value: obj[key]
-            };
-
-          case 7:
-            _context8.next = 1;
-            break;
-
-          case 9:
-          case "end":
-            return _context8.stop();
-        }
+    while (current) {
+      if (handler(current)) {
+        return current;
       }
-    }, _marked, this);
+
+      current = current.$parent;
+    }
   }
 
   exports.VueFinalValidateField = VueFinalValidateField;
@@ -5961,6 +5915,7 @@
   exports.makeValidateMethod = makeValidateMethod;
   exports.listenUserInput = listenUserInput;
   exports.default = install;
+  exports.findParent = findParent$1;
 
   Object.defineProperty(exports, '__esModule', { value: true });
 

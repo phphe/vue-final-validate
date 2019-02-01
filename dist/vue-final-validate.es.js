@@ -1,5 +1,5 @@
 /*!
- * vue-final-validate v0.0.0-beta.2
+ * vue-final-validate v1.0.0
  * (c) 2017-present phphe <phphe@outlook.com>
  * Released under the MIT License.
  */
@@ -23,7 +23,8 @@ import 'core-js/modules/es7.array.includes';
 import 'core-js/modules/es6.string.includes';
 import 'core-js/modules/web.dom.iterable';
 import 'core-js/modules/es6.regexp.replace';
-import { snakeCase, isPromise, forAll, isFunction, isObject, isArray as isArray$1, waitTime, onDOM } from 'helper-js';
+import { snakeCase, forAll, isFunction, isObject, isArray as isArray$1, isPromise, promiseTimeout, waitTime, onDOM } from 'helper-js';
+import { iterateObjectWithoutDollarDash, watchAsync } from 'vue-functions';
 
 var promise$1 = promise;
 
@@ -161,9 +162,6 @@ function _defineProperty(obj, key, value) {
   return obj;
 }
 
-var _marked =
-/*#__PURE__*/
-regeneratorRuntime.mark(iterateObjectWithoutDollarDash);
 var VueFinalValidateField =
 /*#__PURE__*/
 function () {
@@ -184,108 +182,6 @@ function () {
         // string or array
         return (value.trim ? value.trim() : value).length === 0;
       }
-    }
-  }, {
-    key: "findParent",
-    value: function findParent(field, handler) {
-      var current = field;
-
-      while (current) {
-        if (handler(current)) {
-          return current;
-        }
-
-        current = current.$parent;
-      }
-    } // the dependences in getter can't be auto resolved. must use exec to include dependences
-
-  }, {
-    key: "watchAsync",
-    value: function watchAsync(vm, getter, handler, opt) {
-      var destroies = [];
-      var value, oldValue;
-      var count = -1; // updated count
-
-      main();
-      return destroy;
-
-      function destroy() {
-        destroies.forEach(function (f) {
-          return f();
-        });
-        destroies = [];
-      }
-
-      function exec(getter, opt) {
-        var value;
-        var first = true;
-        var unwatch = vm.$watch(function () {
-          return getter.call(vm, exec);
-        }, function (value2) {
-          value = value2;
-
-          if (first) {
-            first = false;
-          } else {
-            main();
-          }
-        }, {
-          immediate: true,
-          deep: opt && opt.deep
-        });
-        destroies.push(unwatch);
-        return value;
-      }
-
-      function main() {
-        destroy();
-        var result = getter.call(vm, exec);
-        count++;
-        var localCount = count;
-        oldValue = value;
-
-        var getterExecuted = function getterExecuted(value) {
-          if (localCount !== count) {
-            // expired
-            return;
-          }
-
-          if (localCount === 0) {
-            if (opt && opt.immediate) {
-              handler.call(vm, value, oldValue);
-            }
-          } else {
-            handler.call(vm, value, oldValue);
-          }
-        }; //
-
-
-        if (isPromise(result)) {
-          result.then(getterExecuted);
-        } else {
-          getterExecuted(result);
-        }
-      }
-    } // do handler first, handler return getter
-
-  }, {
-    key: "doWatch",
-    value: function doWatch(vm, handler) {
-      var oldValue, unwatch;
-
-      var update = function update() {
-        var getter = handler.call(vm, oldValue);
-        unwatch = vm.$watch(getter, function (value) {
-          unwatch();
-          oldValue = value;
-          update();
-        });
-      };
-
-      update();
-      return function () {
-        return unwatch && unwatch();
-      };
     } // props --------------
     // $vm,
     // $globalConfig,
@@ -576,7 +472,7 @@ function () {
         if (_this2.$valueGetter) {
           value = _this2.$valueGetter(_this2);
         } else {
-          var t = cls.findParent(_this2, function (field) {
+          var t = findParent(_this2, function (field) {
             return field.$childValueGetter;
           });
           var childValueGetter = t ? t.$childValueGetter : _this2.$globalConfig.childValueGetter;
@@ -607,7 +503,7 @@ function () {
     value: function _watchForRules() {
       var _this3 = this;
 
-      var unwatch = cls.watchAsync(this.$vm, function (exec) {
+      var unwatch = watchAsync(this.$vm, function (exec) {
         var rulesForRequired = [];
         var rulesForValid = [];
         var rules;
@@ -954,7 +850,7 @@ function () {
       this._unwatches.push(unwatch);
 
       unwatch = this.$vm.$watch(function () {
-        if (cls.findParent(_this4, function (field) {
+        if (findParent(_this4, function (field) {
           return field._ignore;
         })) {
           return true;
@@ -1017,7 +913,7 @@ function () {
       var _this5 = this;
 
       var validateId = -1;
-      var unwatch = cls.watchAsync(this.$vm,
+      var unwatch = watchAsync(this.$vm,
       /*#__PURE__*/
       function () {
         var _ref5 = _asyncToGenerator(
@@ -1094,7 +990,9 @@ function () {
                             exec(function () {
                               return rule.handler;
                             });
-                            t = rule.handler(exec);
+                            t = exec(function () {
+                              return rule.handler(exec);
+                            });
 
                             if (isPromise(t) && _this5.$globalConfig.timeout) {
                               t = promiseTimeout(t, _this5.$globalConfig.timeout);
@@ -1769,67 +1667,17 @@ function install(Vue, config) {
   });
   return validateMethod;
 }
+function findParent(field, handler) {
+  var current = field;
 
-function promiseTimeout(promise$$1, timeout) {
-  return new promise$1(function (resolve, reject) {
-    var t, rejected;
-    promise$$1.then(function () {
-      clearTimeout(t);
-      resolve.apply(void 0, arguments);
-    }, function () {
-      if (!rejected) {
-        clearTimeout(t);
-        reject.apply(void 0, arguments);
-      }
-    });
-    t = setTimeout(function () {
-      rejected = true;
-      var e = new Error('Promise timeout!');
-      e.name = 'timeout';
-      reject(e);
-    }, timeout);
-  });
-}
-
-function iterateObjectWithoutDollarDash(obj) {
-  var key, start;
-  return regeneratorRuntime.wrap(function iterateObjectWithoutDollarDash$(_context8) {
-    while (1) {
-      switch (_context8.prev = _context8.next) {
-        case 0:
-          _context8.t0 = regeneratorRuntime.keys(obj);
-
-        case 1:
-          if ((_context8.t1 = _context8.t0()).done) {
-            _context8.next = 9;
-            break;
-          }
-
-          key = _context8.t1.value;
-          start = key.substr(0, 1);
-
-          if (!(start !== '$' && start !== '_')) {
-            _context8.next = 7;
-            break;
-          }
-
-          _context8.next = 7;
-          return {
-            key: key,
-            value: obj[key]
-          };
-
-        case 7:
-          _context8.next = 1;
-          break;
-
-        case 9:
-        case "end":
-          return _context8.stop();
-      }
+  while (current) {
+    if (handler(current)) {
+      return current;
     }
-  }, _marked, this);
+
+    current = current.$parent;
+  }
 }
 
 export default install;
-export { VueFinalValidateField, cls, makeMountPoint, getDefaultConfig, makeValidateMethod, listenUserInput };
+export { VueFinalValidateField, cls, makeMountPoint, getDefaultConfig, makeValidateMethod, listenUserInput, findParent };
