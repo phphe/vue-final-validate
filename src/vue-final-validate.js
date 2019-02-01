@@ -564,7 +564,7 @@ export class VueFinalValidateField {
       for (let i = 0; i < rulesRequired.length; i++) {
         const rule = rulesRequired[i]
         exec(() => rule.handler)
-        let t = rule.handler(exec)
+        let t = exec(() => rule.handler(exec))
         if (hp.isPromise(t) && this.$globalConfig.timeout) {
           t = promiseTimeout(t, this.$globalConfig.timeout)
         }
