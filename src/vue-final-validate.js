@@ -1,4 +1,5 @@
 import * as hp from 'helper-js'
+import * as vf from 'vue-functions'
 
 export class VueFinalValidateField {
   // static -------------
@@ -15,81 +16,6 @@ export class VueFinalValidateField {
       // string or array
       return (value.trim ? value.trim() : value).length === 0
     }
-  }
-  static findParent(field, handler) {
-    let current = field
-    while (current) {
-      if (handler(current)) {
-        return current
-      }
-      current = current.$parent
-    }
-  }
-  // the dependences in getter can't be auto resolved. must use exec to include dependences
-  static watchAsync(vm, getter, handler, opt) {
-    let destroies = []
-    let value, oldValue
-    let count = -1 // updated count
-    main()
-    return destroy
-    function destroy() {
-      destroies.forEach(f => f())
-      destroies = []
-    }
-    function exec(getter, opt) {
-      let value
-      let first = true
-      const unwatch = vm.$watch(() => getter.call(vm, exec), value2 => {
-        value = value2
-        if (first) {
-          first = false
-        } else {
-          main()
-        }
-      }, {immediate: true, deep: opt && opt.deep})
-      destroies.push(unwatch)
-      return value
-    }
-    function main() {
-      destroy()
-      const result = getter.call(vm, exec)
-      count++
-      const localCount = count
-      oldValue = value
-      const getterExecuted = (value) => {
-        if (localCount !== count) {
-          // expired
-          return
-        }
-        if (localCount === 0) {
-          if (opt && opt.immediate) {
-            handler.call(vm, value, oldValue)
-          }
-        } else {
-          handler.call(vm, value, oldValue)
-        }
-      }
-      //
-      if (hp.isPromise(result)) {
-        result.then(getterExecuted)
-      } else {
-        getterExecuted(result)
-      }
-    }
-  }
-  // do handler first, handler return getter
-  static doWatch(vm, handler) {
-    let oldValue, unwatch
-    const update = () => {
-      const getter = handler.call(vm, oldValue)
-      unwatch = vm.$watch(getter, (value) => {
-        unwatch()
-        oldValue = value
-        update()
-      })
-    }
-    update()
-    return () => unwatch && unwatch()
   }
   // props --------------
   // $vm,
@@ -254,7 +180,7 @@ export class VueFinalValidateField {
       // is parent
       // validation or with `$rules`
       this.$isParent = true
-      for (const {key, value} of iterateObjectWithoutDollarDash(this)) {
+      for (const {key, value} of vf.iterateObjectWithoutDollarDash(this)) {
         this.$add(key, value)
       }
     } else {
@@ -267,7 +193,7 @@ export class VueFinalValidateField {
       if (this.$valueGetter) {
         value = this.$valueGetter(this)
       } else {
-        let t = cls.findParent(this, field => field.$childValueGetter)
+        let t = findParent(this, field => field.$childValueGetter)
         const childValueGetter = t ? t.$childValueGetter : this.$globalConfig.childValueGetter
         if (childValueGetter) {
           value = childValueGetter(this)
@@ -287,7 +213,7 @@ export class VueFinalValidateField {
     this._baseUnwatches.push(unwatch)
   }
   _watchForRules() {
-    const unwatch = cls.watchAsync(this.$vm, (exec) => {
+    const unwatch = vf.watchAsync(this.$vm, (exec) => {
       const rulesForRequired = []
       const rulesForValid = []
       let rules
@@ -304,7 +230,7 @@ export class VueFinalValidateField {
       } else {
         // end field
         rules = {}
-        for (const {key, value} of iterateObjectWithoutDollarDash(this)) {
+        for (const {key, value} of vf.iterateObjectWithoutDollarDash(this)) {
           exec(() => this[key])
           rules[key] = value
         }
@@ -488,7 +414,7 @@ export class VueFinalValidateField {
     this._unwatches.push(unwatch)
     unwatch = this.$vm.$watch(
       () => {
-        if (cls.findParent(this, field => field._ignore)) {
+        if (findParent(this, field => field._ignore)) {
           return true
         }
         return this._ignore
@@ -537,7 +463,7 @@ export class VueFinalValidateField {
   // watch and auto update `$required`, `_valid`, `_validating`, `_errors`
   _watchForValidate() {
     let validateId = -1
-    const unwatch = cls.watchAsync(this.$vm, async (exec) => {
+    const unwatch = vf.watchAsync(this.$vm, async (exec) => {
       validateId++
       const id = validateId
       exec(() => this._rules)
@@ -566,7 +492,7 @@ export class VueFinalValidateField {
         exec(() => rule.handler)
         let t = exec(() => rule.handler(exec))
         if (hp.isPromise(t) && this.$globalConfig.timeout) {
-          t = promiseTimeout(t, this.$globalConfig.timeout)
+          t = hp.promiseTimeout(t, this.$globalConfig.timeout)
         }
         let ruleReturn = await t
         if (id !== validateId) {
@@ -606,7 +532,7 @@ export class VueFinalValidateField {
         exec(() => rule.handler)
         let t = rule.handler(exec)
         if (hp.isPromise(t) && this.$globalConfig.timeout) {
-          t = promiseTimeout(t, this.$globalConfig.timeout)
+          t = hp.promiseTimeout(t, this.$globalConfig.timeout)
         }
         let ruleReturn = await t
         if (id !== validateId) {
@@ -818,32 +744,12 @@ export default function install(Vue, config) {
   return validateMethod
 }
 
-function promiseTimeout(promise, timeout) {
-  return new Promise((resolve, reject) => {
-    let t, rejected
-    promise.then((...args) => {
-      clearTimeout(t)
-      resolve(...args)
-    }, (...args) => {
-      if (!rejected) {
-        clearTimeout(t)
-        reject(...args)
-      }
-    })
-    t = setTimeout(() => {
-      rejected = true
-      const e = new Error('Promise timeout!')
-      e.name = 'timeout'
-      reject(e)
-    }, timeout)
-  })
-}
-
-function* iterateObjectWithoutDollarDash(obj) {
-  for (const key in obj) {
-    const start = key.substr(0, 1)
-    if (start !== '$' && start !== '_') {
-      yield {key, value: obj[key]}
+export function findParent(field, handler) {
+  let current = field
+  while (current) {
+    if (handler(current)) {
+      return current
     }
+    current = current.$parent
   }
 }
