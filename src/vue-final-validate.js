@@ -498,7 +498,7 @@ export class VueFinalValidateField {
         if (id !== validateId) {
           return {expired: true}
         }
-        if (ruleReturn.hasOwnProperty('__validate')) {
+        if (ruleReturn && ruleReturn.hasOwnProperty('__validate')) {
           required = ruleReturn.__validate
           ruleReturn = ruleReturn.value
         } else {
@@ -538,7 +538,7 @@ export class VueFinalValidateField {
         if (id !== validateId) {
           return {expired: true}
         }
-        if (ruleReturn.hasOwnProperty('__validate')) {
+        if (ruleReturn && ruleReturn.hasOwnProperty('__validate')) {
           valid = ruleReturn.__validate
           ruleReturn = ruleReturn.value
         } else {
