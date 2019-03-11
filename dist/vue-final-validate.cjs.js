@@ -1,5 +1,5 @@
 /*!
- * vue-final-validate v1.0.0
+ * vue-final-validate v1.0.1
  * (c) 2017-present phphe <phphe@outlook.com>
  * Released under the MIT License.
  */
@@ -1022,7 +1022,7 @@ function () {
                             });
 
                           case 9:
-                            if (ruleReturn.hasOwnProperty('__validate')) {
+                            if (ruleReturn && ruleReturn.hasOwnProperty('__validate')) {
                               required = ruleReturn.__validate;
                               ruleReturn = ruleReturn.value;
                             } else {
@@ -1175,7 +1175,7 @@ function () {
                             });
 
                           case 9:
-                            if (ruleReturn.hasOwnProperty('__validate')) {
+                            if (ruleReturn && ruleReturn.hasOwnProperty('__validate')) {
                               valid = ruleReturn.__validate;
                               ruleReturn = ruleReturn.value;
                             } else {
