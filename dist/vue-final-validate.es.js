@@ -15,15 +15,16 @@ import getOwnPropertyNames from 'core-js/library/fn/object/get-own-property-name
 import getIterator from 'core-js/library/fn/get-iterator';
 import assign from 'core-js/library/fn/object/assign';
 import defineProperty from 'core-js/library/fn/object/define-property';
-import 'core-js/modules/es6.array.find';
 import 'core-js/modules/es6.regexp.constructor';
-import 'regenerator-runtime/runtime';
-import 'core-js/modules/es6.function.name';
+import 'core-js/modules/es6.regexp.to-string';
 import 'core-js/modules/es7.array.includes';
 import 'core-js/modules/es6.string.includes';
+import { snakeCase, forAll, isFunction, isObject, isArray as isArray$1, isPromise, promiseTimeout, waitTime, onDOM, isNumeric, isString } from 'helper-js';
+import 'core-js/modules/es6.array.find';
+import 'regenerator-runtime/runtime';
+import 'core-js/modules/es6.function.name';
 import 'core-js/modules/web.dom.iterable';
 import 'core-js/modules/es6.regexp.replace';
-import { snakeCase, forAll, isFunction, isObject, isArray as isArray$1, isPromise, promiseTimeout, waitTime, onDOM } from 'helper-js';
 import { iterateObjectWithoutDollarDash, watchAsync } from 'vue-functions';
 
 var promise$1 = promise;
@@ -161,6 +162,97 @@ function _defineProperty(obj, key, value) {
 
   return obj;
 }
+
+var rules = {
+  accepted: function accepted(value) {
+    return value === 'yes' || value === 'on' || value === true || value === 1 || value === '1';
+  },
+  alpha: function alpha(value) {
+    return /^[a-zA-Z]+$/.test(value);
+  },
+  alphaDash: function alphaDash(value) {
+    return /^[\w-]+$/.test(value);
+  },
+  alphaNum: function alphaNum(value) {
+    return /^[\w]+$/.test(value);
+  },
+  between: function between(value, params) {
+    return params[0] <= value && params[1] <= value;
+  },
+  different: function different(value, params) {
+    var relatedField = isFunction(params[0]) ? params[0](field) : params[0];
+    return value !== relatedField.$value;
+  },
+  email: function email(value) {
+    return /^\w+([\.-]?\w+)*@\w+([\.:]?\w+)+(\.[a-zA-Z0-9]{2,3})*$/.test(value);
+  },
+  in: function _in(value, params) {
+    return params[0].indexOf(value) > -1;
+  },
+  integer: function integer(value) {
+    return isNumeric(value) && !value.toString().includes('.');
+  },
+  length: function length(value, params) {
+    return (value || '').length === params[0];
+  },
+  lengthBetween: function lengthBetween(value, params) {
+    var len = (value || '').length;
+    return params[0] <= len && len <= params[1];
+  },
+  max: function max(value, params) {
+    return value <= params[0];
+  },
+  maxLength: function maxLength(value, params) {
+    return (value || '').length <= params[0];
+  },
+  min: function min(value, params) {
+    return value >= params[0];
+  },
+  minLength: function minLength(value, params) {
+    return (value || '').length >= params[0];
+  },
+  notIn: function notIn(value, params) {
+    return params[0].indexOf(value) === -1;
+  },
+  numeric: function numeric(value) {
+    return isNumeric(value);
+  },
+  regex: function regex(value, params) {
+    var reg = isString(params[0]) ? new RegExp(params[0]) : params[0];
+    return reg.test(value);
+  },
+  required: {
+    type: 'required',
+    handler: function handler(value, params) {
+      return params[0];
+    }
+  },
+  // require if related field not empty
+  requiredIfField: {
+    type: 'required',
+    handler: function handler(value, params, field) {
+      var relatedField = isFunction(params[0]) ? params[0](field) : params[0];
+      return {
+        __validate: !relatedField.$empty,
+        value: relatedField
+      };
+    }
+  },
+  // required if getter return true
+  requiredIf: {
+    type: 'required',
+    handler: function handler(value, params, field) {
+      return params[0](field);
+    }
+  },
+  same: function same(value, params, field) {
+    var relatedField = params[0](field);
+    return {
+      __validate: value === relatedField.$value,
+      value: relatedField
+    };
+  }
+};
 
 var VueFinalValidateField =
 /*#__PURE__*/
@@ -506,26 +598,26 @@ function () {
       var unwatch = watchAsync(this.$vm, function (exec) {
         var rulesForRequired = [];
         var rulesForValid = [];
-        var rules;
+        var rules$$1;
 
         if (exec(function () {
           return _this3.$each || _this3.$isParent || _this3.$rules || _this3 === _this3.$validation;
         })) {
-          rules = _this3.$rules;
+          rules$$1 = _this3.$rules;
 
-          if (isFunction(rules)) {
-            rules = exec(function () {
-              return rules(_this3);
+          if (isFunction(rules$$1)) {
+            rules$$1 = exec(function () {
+              return rules$$1(_this3);
             });
-          } else if (rules) {
+          } else if (rules$$1) {
             // clone
-            rules = assign$1({}, rules);
+            rules$$1 = assign$1({}, rules$$1);
           } else {
-            rules = {};
+            rules$$1 = {};
           }
         } else {
           // end field
-          rules = {};
+          rules$$1 = {};
           var _iteratorNormalCompletion3 = true;
           var _didIteratorError3 = false;
           var _iteratorError3 = undefined;
@@ -538,7 +630,7 @@ function () {
               exec(function () {
                 return _this3[key];
               });
-              rules[key] = value;
+              rules$$1[key] = value;
             };
 
             for (var _iterator3 = getIterator$1(iterateObjectWithoutDollarDash(_this3)), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
@@ -560,13 +652,13 @@ function () {
           }
         }
 
-        if (!rules || keys$1(rules).length === 0) {
+        if (!rules$$1 || keys$1(rules$$1).length === 0) {
           return;
         }
 
         return exec(function () {
           var _loop2 = function _loop2(name) {
-            var ruleInfo = rules[name];
+            var ruleInfo = rules$$1[name];
 
             if (!isObject(ruleInfo)) {
               ruleInfo = {
@@ -716,17 +808,17 @@ function () {
               rulesForValid.push(wrappedRule);
             }
 
-            rules[name] = wrappedRule;
+            rules$$1[name] = wrappedRule;
           };
 
-          for (var name in rules) {
+          for (var name in rules$$1) {
             _loop2(name);
           }
 
           return {
             required: rulesForRequired,
             valid: rulesForValid,
-            rules: rules
+            rules: rules$$1
           };
         });
       }, function (result) {
@@ -919,7 +1011,7 @@ function () {
         var _ref5 = _asyncToGenerator(
         /*#__PURE__*/
         regeneratorRuntime.mark(function _callee3(exec) {
-          var id, rules, rulesRequired, rulesValid, required, valid, reasons, _loop3, i, _ret, _iteratorNormalCompletion4, _didIteratorError4, _iteratorError4, _loop4, _iterator4, _step4, _ret2;
+          var id, rules$$1, rulesRequired, rulesValid, required, valid, reasons, _loop3, i, _ret, _iteratorNormalCompletion4, _didIteratorError4, _iteratorError4, _loop4, _iterator4, _step4, _ret2;
 
           return regeneratorRuntime.wrap(function _callee3$(_context5) {
             while (1) {
@@ -930,7 +1022,7 @@ function () {
                   exec(function () {
                     return _this5._rules;
                   });
-                  rules = _this5._rules;
+                  rules$$1 = _this5._rules;
                   exec(function () {
                     return _this5._rulesForRequired;
                   });
@@ -1603,6 +1695,46 @@ function getDefaultConfig() {
 function makeValidateMethod(mountPoint, config) {
   assign$1(initValidation, config);
 
+  assign$1(initValidation, {
+    addRules: function addRules(rules$$1) {
+      var _this7 = this;
+
+      var newRules = {};
+
+      keys$1(rules$$1).forEach(function (key) {
+        var newRule = assign$1({}, rules$$1[key]);
+
+        newRules[key] = newRule;
+
+        newRule.message = function (value, params, field, ruleReturn) {
+          var locale = _this7.locale || 'default';
+          var message = _this7.messages[locale][key];
+
+          if (isFunction(message)) {
+            return message(value, params, field, ruleReturn);
+          }
+
+          return message;
+        };
+      });
+
+      assign$1(this.rules, newRules);
+    },
+    addMessages: function addMessages(messages) {
+      var locale = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'default';
+
+      if (!this.messages) {
+        this.messages = {};
+      }
+
+      if (!this.messages[locale]) {
+        this.messages[locale] = {};
+      }
+
+      assign$1(this.messages[locale], messages);
+    }
+  });
+
   return initValidation;
 
   function initValidation(validation, data) {
@@ -1665,6 +1797,7 @@ function install(Vue, config) {
       }
     }
   });
+  validateMethod.addRules(rules);
   return validateMethod;
 }
 function findParent(field, handler) {

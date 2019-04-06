@@ -862,9 +862,9 @@
     }
   };
 
-  var navigator = _global.navigator;
+  var navigator$1 = _global.navigator;
 
-  var _userAgent = navigator && navigator.userAgent || '';
+  var _userAgent = navigator$1 && navigator$1.userAgent || '';
 
   var _promiseResolve = function (C, x) {
     _anObject(C);
@@ -3849,7 +3849,7 @@
   }
 
   /*!
-   * helper-js v1.3.1
+   * helper-js v1.3.9
    * (c) 2018-present phphe <phphe@outlook.com> (https://github.com/phphe)
    * Released under the MIT License.
    */
@@ -3876,29 +3876,19 @@
     return Constructor;
   }
 
-  function _get(object, property, receiver) {
-    if (object === null) object = Function.prototype;
-    var desc = Object.getOwnPropertyDescriptor(object, property);
-
-    if (desc === undefined) {
-      var parent = Object.getPrototypeOf(object);
-
-      if (parent === null) {
-        return undefined;
-      } else {
-        return _get(parent, property, receiver);
-      }
-    } else if ("value" in desc) {
-      return desc.value;
+  function _defineProperty$1(obj, key, value) {
+    if (key in obj) {
+      Object.defineProperty(obj, key, {
+        value: value,
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
     } else {
-      var getter = desc.get;
-
-      if (getter === undefined) {
-        return undefined;
-      }
-
-      return getter.call(receiver);
+      obj[key] = value;
     }
+
+    return obj;
   }
 
   function _inherits(subClass, superClass) {
@@ -3909,12 +3899,27 @@
     subClass.prototype = Object.create(superClass && superClass.prototype, {
       constructor: {
         value: subClass,
-        enumerable: false,
         writable: true,
         configurable: true
       }
     });
-    if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
+    if (superClass) _setPrototypeOf(subClass, superClass);
+  }
+
+  function _getPrototypeOf(o) {
+    _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) {
+      return o.__proto__ || Object.getPrototypeOf(o);
+    };
+    return _getPrototypeOf(o);
+  }
+
+  function _setPrototypeOf(o, p) {
+    _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) {
+      o.__proto__ = p;
+      return o;
+    };
+
+    return _setPrototypeOf(o, p);
   }
 
   function _assertThisInitialized(self) {
@@ -3931,6 +3936,36 @@
     }
 
     return _assertThisInitialized(self);
+  }
+
+  function _superPropBase(object, property) {
+    while (!Object.prototype.hasOwnProperty.call(object, property)) {
+      object = _getPrototypeOf(object);
+      if (object === null) break;
+    }
+
+    return object;
+  }
+
+  function _get(target, property, receiver) {
+    if (typeof Reflect !== "undefined" && Reflect.get) {
+      _get = Reflect.get;
+    } else {
+      _get = function _get(target, property, receiver) {
+        var base = _superPropBase(target, property);
+
+        if (!base) return;
+        var desc = Object.getOwnPropertyDescriptor(base, property);
+
+        if (desc.get) {
+          return desc.get.call(receiver);
+        }
+
+        return desc.value;
+      };
+    }
+
+    return _get(target, property, receiver || target);
   }
 
   function _toConsumableArray$1(arr) {
@@ -3976,6 +4011,9 @@
   function isArray$2(v) {
     return Object.prototype.toString.call(v) === '[object Array]';
   }
+  function isNumeric(v) {
+    return isFinite(v) && !isNaN(parseFloat(v));
+  }
   function isString(v) {
     return Object.prototype.toString.call(v) === '[object String]';
   }
@@ -4004,10 +4042,8 @@
           }
         }
       } else if (isObject(val)) {
-        var _arr = Object.keys(val);
-
-        for (var _i2 = 0; _i2 < _arr.length; _i2++) {
-          var key = _arr[_i2];
+        for (var _i2 = 0, _Object$keys = Object.keys(val); _i2 < _Object$keys.length; _i2++) {
+          var key = _Object$keys[_i2];
 
           if (handler(val[key], key) === false) {
             break;
@@ -4031,8 +4067,8 @@
         var keys = Object.keys(val);
         keys.reverse();
 
-        for (var _i5 = 0; _i5 < keys.length; _i5++) {
-          var _key = keys[_i5];
+        for (var _i5 = 0, _keys = keys; _i5 < _keys.length; _i5++) {
+          var _key = _keys[_i5];
 
           if (handler(val[_key], _key) === false) {
             break;
@@ -4094,29 +4130,21 @@
   function () {
     // protocol, hostname, port, pastname
     function URLHelper(baseUrl) {
-      var _this2 = this;
+      var _this3 = this;
 
       _classCallCheck$1(this, URLHelper);
 
-      Object.defineProperty(this, "baseUrl", {
-        configurable: true,
-        enumerable: true,
-        writable: true,
-        value: ''
-      });
-      Object.defineProperty(this, "search", {
-        configurable: true,
-        enumerable: true,
-        writable: true,
-        value: {}
-      });
+      _defineProperty$1(this, "baseUrl", '');
+
+      _defineProperty$1(this, "search", {});
+
       var t = decodeURI(baseUrl).split('?');
       this.baseUrl = t[0];
 
       if (t[1]) {
         t[1].split('&').forEach(function (v) {
           var t2 = v.split('=');
-          _this2.search[t2[0]] = t2[1] == null ? '' : decodeURIComponent(t2[1]);
+          _this3.search[t2[0]] = t2[1] == null ? '' : decodeURIComponent(t2[1]);
         });
       }
     }
@@ -4124,11 +4152,11 @@
     _createClass$1(URLHelper, [{
       key: "getHref",
       value: function getHref() {
-        var _this3 = this;
+        var _this4 = this;
 
         var t = [this.baseUrl];
         var searchStr = Object.keys(this.search).map(function (k) {
-          return "".concat(k, "=").concat(encodeURIComponent(_this3.search[k]));
+          return "".concat(k, "=").concat(encodeURIComponent(_this4.search[k]));
         }).join('&');
 
         if (searchStr) {
@@ -4148,12 +4176,7 @@
     function EventProcessor() {
       _classCallCheck$1(this, EventProcessor);
 
-      Object.defineProperty(this, "eventStore", {
-        configurable: true,
-        enumerable: true,
-        writable: true,
-        value: []
-      });
+      _defineProperty$1(this, "eventStore", []);
     }
 
     _createClass$1(EventProcessor, [{
@@ -4167,10 +4190,10 @@
     }, {
       key: "once",
       value: function once(name, handler) {
-        var _this4 = this;
+        var _this5 = this;
 
         var off = function off() {
-          _this4.off(name, wrappedHandler);
+          _this5.off(name, wrappedHandler);
         };
 
         var wrappedHandler = function wrappedHandler() {
@@ -4196,8 +4219,8 @@
           }
         }
 
-        for (var _i8 = 0; _i8 < indexes.length; _i8++) {
-          var index = indexes[_i8];
+        for (var _i8 = 0, _indexes = indexes; _i8 < _indexes.length; _i8++) {
+          var index = _indexes[_i8];
           this.eventStore.splice(index, 1);
         }
       }
@@ -4206,39 +4229,39 @@
       value: function emit(name) {
         // 重要: 先找到要执行的项放在新数组里, 因为执行项会改变事件项存储数组
         var items = [];
-        var _iteratorNormalCompletion5 = true;
-        var _didIteratorError5 = false;
-        var _iteratorError5 = undefined;
+        var _iteratorNormalCompletion9 = true;
+        var _didIteratorError9 = false;
+        var _iteratorError9 = undefined;
 
         try {
-          for (var _iterator5 = this.eventStore[Symbol.iterator](), _step5; !(_iteratorNormalCompletion5 = (_step5 = _iterator5.next()).done); _iteratorNormalCompletion5 = true) {
-            var item = _step5.value;
+          for (var _iterator9 = this.eventStore[Symbol.iterator](), _step9; !(_iteratorNormalCompletion9 = (_step9 = _iterator9.next()).done); _iteratorNormalCompletion9 = true) {
+            var item = _step9.value;
 
             if (item.name === name) {
               items.push(item);
             }
           }
         } catch (err) {
-          _didIteratorError5 = true;
-          _iteratorError5 = err;
+          _didIteratorError9 = true;
+          _iteratorError9 = err;
         } finally {
           try {
-            if (!_iteratorNormalCompletion5 && _iterator5.return != null) {
-              _iterator5.return();
+            if (!_iteratorNormalCompletion9 && _iterator9.return != null) {
+              _iterator9.return();
             }
           } finally {
-            if (_didIteratorError5) {
-              throw _iteratorError5;
+            if (_didIteratorError9) {
+              throw _iteratorError9;
             }
           }
         }
 
-        for (var _len7 = arguments.length, args = new Array(_len7 > 1 ? _len7 - 1 : 0), _key8 = 1; _key8 < _len7; _key8++) {
-          args[_key8 - 1] = arguments[_key8];
+        for (var _len8 = arguments.length, args = new Array(_len8 > 1 ? _len8 - 1 : 0), _key9 = 1; _key9 < _len8; _key9++) {
+          args[_key9 - 1] = arguments[_key9];
         }
 
-        for (var _i9 = 0; _i9 < items.length; _i9++) {
-          var _item = items[_i9];
+        for (var _i9 = 0, _items = items; _i9 < _items.length; _i9++) {
+          var _item = _items[_i9];
 
           _item.handler.apply(_item, args);
         }
@@ -4253,33 +4276,30 @@
     _inherits(CrossWindow, _EventProcessor);
 
     function CrossWindow() {
-      var _this5;
+      var _this6;
 
       _classCallCheck$1(this, CrossWindow);
 
-      _this5 = _possibleConstructorReturn(this, (CrossWindow.__proto__ || Object.getPrototypeOf(CrossWindow)).call(this));
-      Object.defineProperty(_assertThisInitialized(_this5), "storageName", {
-        configurable: true,
-        enumerable: true,
-        writable: true,
-        value: '_crossWindow'
-      });
+      _this6 = _possibleConstructorReturn(this, _getPrototypeOf(CrossWindow).call(this));
+
+      _defineProperty$1(_assertThisInitialized(_this6), "storageName", '_crossWindow');
+
       var cls = CrossWindow;
 
       if (!cls._listen) {
         cls._listen = true;
         onDOM(window, 'storage', function (ev) {
-          if (ev.key === _this5.storageName) {
+          if (ev.key === _this6.storageName) {
             var _get2;
 
             var event = JSON.parse(ev.newValue);
 
-            (_get2 = _get(CrossWindow.prototype.__proto__ || Object.getPrototypeOf(CrossWindow.prototype), "emit", _assertThisInitialized(_this5))).call.apply(_get2, [_this5, event.name].concat(_toConsumableArray$1(event.args)));
+            (_get2 = _get(_getPrototypeOf(CrossWindow.prototype), "emit", _assertThisInitialized(_this6))).call.apply(_get2, [_assertThisInitialized(_this6), event.name].concat(_toConsumableArray$1(event.args)));
           }
         });
       }
 
-      return _this5;
+      return _this6;
     }
 
     _createClass$1(CrossWindow, [{
@@ -4287,11 +4307,11 @@
       value: function emit(name) {
         var _get3;
 
-        for (var _len8 = arguments.length, args = new Array(_len8 > 1 ? _len8 - 1 : 0), _key9 = 1; _key9 < _len8; _key9++) {
-          args[_key9 - 1] = arguments[_key9];
+        for (var _len9 = arguments.length, args = new Array(_len9 > 1 ? _len9 - 1 : 0), _key10 = 1; _key10 < _len9; _key10++) {
+          args[_key10 - 1] = arguments[_key10];
         }
 
-        (_get3 = _get(CrossWindow.prototype.__proto__ || Object.getPrototypeOf(CrossWindow.prototype), "emit", this)).call.apply(_get3, [this, name].concat(args));
+        (_get3 = _get(_getPrototypeOf(CrossWindow.prototype), "emit", this)).call.apply(_get3, [this, name].concat(args));
 
         glb().localStorage.setItem(this.storageName, JSON.stringify({
           name: name,
@@ -4390,6 +4410,124 @@
       }
     }
   }
+
+  // 21.2.5.3 get RegExp.prototype.flags()
+  if (_descriptors$1 && /./g.flags != 'g') _objectDp$1.f(RegExp.prototype, 'flags', {
+    configurable: true,
+    get: _flags
+  });
+
+  var TO_STRING = 'toString';
+  var $toString = /./[TO_STRING];
+
+  var define = function (fn) {
+    _redefine$1(RegExp.prototype, TO_STRING, fn, true);
+  };
+
+  // 21.2.5.14 RegExp.prototype.toString()
+  if (_fails$1(function () { return $toString.call({ source: 'a', flags: 'b' }) != '/a/b'; })) {
+    define(function toString() {
+      var R = _anObject$1(this);
+      return '/'.concat(R.source, '/',
+        'flags' in R ? R.flags : !_descriptors$1 && R instanceof RegExp ? _flags.call(R) : undefined);
+    });
+  // FF44- RegExp#toString has a wrong name
+  } else if ($toString.name != TO_STRING) {
+    define(function toString() {
+      return $toString.call(this);
+    });
+  }
+
+  var rules = {
+    accepted: function accepted(value) {
+      return value === 'yes' || value === 'on' || value === true || value === 1 || value === '1';
+    },
+    alpha: function alpha(value) {
+      return /^[a-zA-Z]+$/.test(value);
+    },
+    alphaDash: function alphaDash(value) {
+      return /^[\w-]+$/.test(value);
+    },
+    alphaNum: function alphaNum(value) {
+      return /^[\w]+$/.test(value);
+    },
+    between: function between(value, params) {
+      return params[0] <= value && params[1] <= value;
+    },
+    different: function different(value, params) {
+      var relatedField = isFunction(params[0]) ? params[0](field) : params[0];
+      return value !== relatedField.$value;
+    },
+    email: function email(value) {
+      return /^\w+([\.-]?\w+)*@\w+([\.:]?\w+)+(\.[a-zA-Z0-9]{2,3})*$/.test(value);
+    },
+    in: function _in(value, params) {
+      return params[0].indexOf(value) > -1;
+    },
+    integer: function integer(value) {
+      return isNumeric(value) && !value.toString().includes('.');
+    },
+    length: function length(value, params) {
+      return (value || '').length === params[0];
+    },
+    lengthBetween: function lengthBetween(value, params) {
+      var len = (value || '').length;
+      return params[0] <= len && len <= params[1];
+    },
+    max: function max(value, params) {
+      return value <= params[0];
+    },
+    maxLength: function maxLength(value, params) {
+      return (value || '').length <= params[0];
+    },
+    min: function min(value, params) {
+      return value >= params[0];
+    },
+    minLength: function minLength(value, params) {
+      return (value || '').length >= params[0];
+    },
+    notIn: function notIn(value, params) {
+      return params[0].indexOf(value) === -1;
+    },
+    numeric: function numeric(value) {
+      return isNumeric(value);
+    },
+    regex: function regex(value, params) {
+      var reg = isString(params[0]) ? new RegExp(params[0]) : params[0];
+      return reg.test(value);
+    },
+    required: {
+      type: 'required',
+      handler: function handler(value, params) {
+        return params[0];
+      }
+    },
+    // require if related field not empty
+    requiredIfField: {
+      type: 'required',
+      handler: function handler(value, params, field) {
+        var relatedField = isFunction(params[0]) ? params[0](field) : params[0];
+        return {
+          __validate: !relatedField.$empty,
+          value: relatedField
+        };
+      }
+    },
+    // required if getter return true
+    requiredIf: {
+      type: 'required',
+      handler: function handler(value, params, field) {
+        return params[0](field);
+      }
+    },
+    same: function same(value, params, field) {
+      var relatedField = params[0](field);
+      return {
+        __validate: value === relatedField.$value,
+        value: relatedField
+      };
+    }
+  };
 
   var VueFinalValidateField =
   /*#__PURE__*/
@@ -4735,26 +4873,26 @@
         var unwatch = watchAsync(this.$vm, function (exec) {
           var rulesForRequired = [];
           var rulesForValid = [];
-          var rules;
+          var rules$$1;
 
           if (exec(function () {
             return _this3.$each || _this3.$isParent || _this3.$rules || _this3 === _this3.$validation;
           })) {
-            rules = _this3.$rules;
+            rules$$1 = _this3.$rules;
 
-            if (isFunction(rules)) {
-              rules = exec(function () {
-                return rules(_this3);
+            if (isFunction(rules$$1)) {
+              rules$$1 = exec(function () {
+                return rules$$1(_this3);
               });
-            } else if (rules) {
+            } else if (rules$$1) {
               // clone
-              rules = assign$1({}, rules);
+              rules$$1 = assign$1({}, rules$$1);
             } else {
-              rules = {};
+              rules$$1 = {};
             }
           } else {
             // end field
-            rules = {};
+            rules$$1 = {};
             var _iteratorNormalCompletion3 = true;
             var _didIteratorError3 = false;
             var _iteratorError3 = undefined;
@@ -4767,7 +4905,7 @@
                 exec(function () {
                   return _this3[key];
                 });
-                rules[key] = value;
+                rules$$1[key] = value;
               };
 
               for (var _iterator3 = getIterator$1(iterateObjectWithoutDollarDash(_this3)), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
@@ -4789,13 +4927,13 @@
             }
           }
 
-          if (!rules || keys$2(rules).length === 0) {
+          if (!rules$$1 || keys$2(rules$$1).length === 0) {
             return;
           }
 
           return exec(function () {
             var _loop2 = function _loop2(name) {
-              var ruleInfo = rules[name];
+              var ruleInfo = rules$$1[name];
 
               if (!isObject(ruleInfo)) {
                 ruleInfo = {
@@ -4945,17 +5083,17 @@
                 rulesForValid.push(wrappedRule);
               }
 
-              rules[name] = wrappedRule;
+              rules$$1[name] = wrappedRule;
             };
 
-            for (var name in rules) {
+            for (var name in rules$$1) {
               _loop2(name);
             }
 
             return {
               required: rulesForRequired,
               valid: rulesForValid,
-              rules: rules
+              rules: rules$$1
             };
           });
         }, function (result) {
@@ -5148,7 +5286,7 @@
           var _ref5 = _asyncToGenerator(
           /*#__PURE__*/
           regeneratorRuntime.mark(function _callee3(exec) {
-            var id, rules, rulesRequired, rulesValid, required, valid, reasons, _loop3, i, _ret, _iteratorNormalCompletion4, _didIteratorError4, _iteratorError4, _loop4, _iterator4, _step4, _ret2;
+            var id, rules$$1, rulesRequired, rulesValid, required, valid, reasons, _loop3, i, _ret, _iteratorNormalCompletion4, _didIteratorError4, _iteratorError4, _loop4, _iterator4, _step4, _ret2;
 
             return regeneratorRuntime.wrap(function _callee3$(_context5) {
               while (1) {
@@ -5159,7 +5297,7 @@
                     exec(function () {
                       return _this5._rules;
                     });
-                    rules = _this5._rules;
+                    rules$$1 = _this5._rules;
                     exec(function () {
                       return _this5._rulesForRequired;
                     });
@@ -5832,6 +5970,46 @@
   function makeValidateMethod(mountPoint, config) {
     assign$1(initValidation, config);
 
+    assign$1(initValidation, {
+      addRules: function addRules(rules$$1) {
+        var _this7 = this;
+
+        var newRules = {};
+
+        keys$2(rules$$1).forEach(function (key) {
+          var newRule = assign$1({}, rules$$1[key]);
+
+          newRules[key] = newRule;
+
+          newRule.message = function (value, params, field, ruleReturn) {
+            var locale = _this7.locale || 'default';
+            var message = _this7.messages[locale][key];
+
+            if (isFunction(message)) {
+              return message(value, params, field, ruleReturn);
+            }
+
+            return message;
+          };
+        });
+
+        assign$1(this.rules, newRules);
+      },
+      addMessages: function addMessages(messages) {
+        var locale = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'default';
+
+        if (!this.messages) {
+          this.messages = {};
+        }
+
+        if (!this.messages[locale]) {
+          this.messages[locale] = {};
+        }
+
+        assign$1(this.messages[locale], messages);
+      }
+    });
+
     return initValidation;
 
     function initValidation(validation, data) {
@@ -5894,6 +6072,7 @@
         }
       }
     });
+    validateMethod.addRules(rules);
     return validateMethod;
   }
   function findParent$1(field, handler) {

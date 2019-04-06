@@ -1,5 +1,6 @@
 import * as hp from 'helper-js'
 import * as vf from 'vue-functions'
+import builtInRules from './rules.js'
 
 export class VueFinalValidateField {
   // static -------------
@@ -691,6 +692,33 @@ export function getDefaultConfig() {
 
 export function makeValidateMethod(mountPoint, config) {
   Object.assign(initValidation, config)
+  Object.assign(initValidation, {
+    addRules(rules) {
+      const newRules = {}
+      Object.keys(rules).forEach(key => {
+        const newRule = Object.assign({}, rules[key])
+        newRules[key] = newRule
+        newRule.message = (value, params, field, ruleReturn) => {
+          const locale = this.locale || 'default'
+          const message = this.messages[locale][key]
+          if (hp.isFunction(message)) {
+            return message(value, params, field, ruleReturn)
+          }
+          return message
+        }
+      })
+      Object.assign(this.rules, newRules)
+    },
+    addMessages(messages, locale = 'default') {
+      if (!this.messages) {
+        this.messages = {}
+      }
+      if (!this.messages[locale]) {
+        this.messages[locale] = {}
+      }
+      Object.assign(this.messages[locale], messages)
+    },
+  })
   return initValidation
   function initValidation(validation, data) {
     if (data && !validation.hasOwnProperty('$valueGetter')) {
@@ -741,6 +769,7 @@ export default function install(Vue, config) {
       }
     }
   })
+  validateMethod.addRules(builtInRules)
   return validateMethod
 }
 
