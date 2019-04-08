@@ -697,7 +697,7 @@ export function makeValidateMethod(mountPoint, config) {
     addRules(rules) {
       const newRules = {}
       Object.keys(rules).forEach(key => {
-        const newRule = Object.assign({}, rules[key])
+        const newRule = hp.isFunction(rules[key]) ? {handler: rules[key]} : Object.assign({}, rules[key])
         newRules[key] = newRule
         newRule.message = (value, params, field, ruleReturn) => {
           const locale = this.locale || 'default'
