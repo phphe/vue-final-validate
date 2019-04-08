@@ -1,21 +1,4 @@
 # vue-final-validate
+Vue validation solution from my development experience. Get Started »
 
-## Project setup
-```
-npm install
-```
-
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
-
-### Compiles and minifies for production
-```
-npm run build
-```
-
-### Lints and fixes files
-```
-npm run lint
-```
+从我的开发经历中总结出的vue表单验证解决方案. 使用 »
