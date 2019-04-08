@@ -1,5 +1,5 @@
 /*!
- * vue-final-validate v1.0.1
+ * vue-final-validate v1.0.2
  * (c) 2017-present phphe <phphe@outlook.com>
  * Released under the MIT License.
  */
@@ -5970,6 +5970,8 @@
   function makeValidateMethod(mountPoint, config) {
     assign$1(initValidation, config);
 
+    initValidation.locale = 'en';
+
     assign$1(initValidation, {
       addRules: function addRules(rules$$1) {
         var _this7 = this;
@@ -6047,6 +6049,8 @@
 
     onDOM(window, 'keydown', handler);
     onDOM(window, 'mousedown', handler);
+    onDOM(window, 'dragstart', handler);
+    onDOM(window, 'dragend', handler);
   }
   function install(Vue, config) {
     listenUserInput();

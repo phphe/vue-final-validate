@@ -24,7 +24,7 @@ bili.write({
 })
 bili.write({
   input: './src/messages/zh-CN.js',
-  name: 'zhCN',
+  name: 'zh-CN',
   moduleName : 'VueFinalValidateMessagesZhCN',
   outDir: './dist/messages',
   format: ['cjs','umd','umd-min','es'],
