@@ -13,18 +13,23 @@ bili.write({
 })
 bili.write({
   input: './src/messages/en.js',
-  output: './dist/messages/en.js',
+  name: 'en',
+  moduleName : 'VueFinalValidateMessagesEn',
+  outDir: './dist/messages',
   format: ['cjs','umd','umd-min','es'],
   banner: true,
   plugin: [],
 }).then(() => {
   console.log('messages/en.js done!')
 })
-// bili.write({
-//   input: './src/messages/zh-CN.js',
-//   format: ['cjs','umd','umd-min','es'],
-//   banner: true,
-//   plugin: [],
-// }).then(() => {
-//   console.log('messages/zh-CN.js done!')
-// })
+bili.write({
+  input: './src/messages/zh-CN.js',
+  name: 'zhCN',
+  moduleName : 'VueFinalValidateMessagesZhCN',
+  outDir: './dist/messages',
+  format: ['cjs','umd','umd-min','es'],
+  banner: true,
+  plugin: [],
+}).then(() => {
+  console.log('messages/zh-CN.js done!')
+})

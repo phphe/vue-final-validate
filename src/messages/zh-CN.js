@@ -26,5 +26,5 @@ export default {
   same(value, params, field, ruleReturn) {
     const relatedField = ruleReturn
     return `:name必须与${relatedField.$name}相同。`
-  },`
+  },
 }

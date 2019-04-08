@@ -692,6 +692,7 @@ export function getDefaultConfig() {
 
 export function makeValidateMethod(mountPoint, config) {
   Object.assign(initValidation, config)
+  initValidation.locale = 'en'
   Object.assign(initValidation, {
     addRules(rules) {
       const newRules = {}
@@ -746,6 +747,8 @@ export function listenUserInput() {
   }
   hp.onDOM(window, 'keydown', handler)
   hp.onDOM(window, 'mousedown', handler)
+  hp.onDOM(window, 'dragstart', handler)
+  hp.onDOM(window, 'dragend', handler)
 }
 
 export default function install(Vue, config) {
