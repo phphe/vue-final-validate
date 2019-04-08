@@ -1,5 +1,5 @@
 /*!
- * vue-final-validate v1.0.2
+ * vue-final-validate v1.0.3
  * (c) 2017-present phphe <phphe@outlook.com>
  * Released under the MIT License.
  */
@@ -1704,8 +1704,9 @@ function makeValidateMethod(mountPoint, config) {
       var newRules = {};
 
       keys$1(rules$$1).forEach(function (key) {
-        var newRule = assign$1({}, rules$$1[key]);
-
+        var newRule = isFunction(rules$$1[key]) ? {
+          handler: rules$$1[key]
+        } : assign$1({}, rules$$1[key]);
         newRules[key] = newRule;
 
         newRule.message = function (value, params, field, ruleReturn) {
