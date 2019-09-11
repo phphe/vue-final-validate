@@ -1,5 +1,5 @@
 /*!
- * vue-final-validate v1.0.3
+ * vue-final-validate v1.0.4
  * (c) 2017-present phphe <phphe@outlook.com>
  * Released under the MIT License.
  */
@@ -31,6 +31,9 @@ require('regenerator-runtime/runtime');
 require('core-js/modules/es6.function.name');
 require('core-js/modules/web.dom.iterable');
 require('core-js/modules/es6.regexp.replace');
+require('core-js/modules/es6.array.iterator');
+require('core-js/modules/es6.promise');
+require('core-js/modules/es7.promise.finally');
 var vf = require('vue-functions');
 
 var promise$1 = promise;
@@ -536,9 +539,9 @@ function () {
 
         try {
           for (var _iterator2 = getIterator$1(vf.iterateObjectWithoutDollarDash(this)), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-            var _ref2 = _step2.value;
-            var key = _ref2.key,
-                value = _ref2.value;
+            var _step2$value = _step2.value,
+                key = _step2$value.key,
+                value = _step2$value.value;
             this.$add(key, value);
           }
         } catch (err) {
@@ -630,9 +633,9 @@ function () {
 
           try {
             var _loop = function _loop() {
-              var _ref3 = _step3.value;
-              var key = _ref3.key,
-                  value = _ref3.value;
+              var _step3$value = _step3.value,
+                  key = _step3$value.key,
+                  value = _step3$value.value;
               exec(function () {
                 return _this3[key];
               });
@@ -731,7 +734,7 @@ function () {
                           resolveMessage =
                           /*#__PURE__*/
                           function () {
-                            var _ref4 = _asyncToGenerator(
+                            var _ref = _asyncToGenerator(
                             /*#__PURE__*/
                             regeneratorRuntime.mark(function _callee(message) {
                               return regeneratorRuntime.wrap(function _callee$(_context) {
@@ -761,7 +764,7 @@ function () {
                             }));
 
                             return function resolveMessage(_x2) {
-                              return _ref4.apply(this, arguments);
+                              return _ref.apply(this, arguments);
                             };
                           }(); //
                           // get message from config
@@ -1014,7 +1017,7 @@ function () {
       var unwatch = vf.watchAsync(this.$vm,
       /*#__PURE__*/
       function () {
-        var _ref5 = _asyncToGenerator(
+        var _ref2 = _asyncToGenerator(
         /*#__PURE__*/
         regeneratorRuntime.mark(function _callee3(exec) {
           var id, rules$$1, rulesRequired, rulesValid, required, valid, reasons, _loop3, i, _ret, _iteratorNormalCompletion4, _didIteratorError4, _iteratorError4, _loop4, _iterator4, _step4, _ret2;
@@ -1243,7 +1246,9 @@ function () {
                             exec(function () {
                               return rule.handler;
                             });
-                            t = rule.handler(exec);
+                            t = exec(function () {
+                              return rule.handler(exec);
+                            });
 
                             if (hp.isPromise(t) && _this5.$globalConfig.timeout) {
                               t = hp.promiseTimeout(t, _this5.$globalConfig.timeout);
@@ -1384,15 +1389,15 @@ function () {
         }));
 
         return function (_x3) {
-          return _ref5.apply(this, arguments);
+          return _ref2.apply(this, arguments);
         };
       }(),
       /*#__PURE__*/
       function () {
-        var _ref6 = _asyncToGenerator(
+        var _ref3 = _asyncToGenerator(
         /*#__PURE__*/
         regeneratorRuntime.mark(function _callee4(value, old) {
-          var _errors, errors, _iteratorNormalCompletion5, _didIteratorError5, _iteratorError5, _iterator5, _step5, _ref8, ruleReturn, rule, message;
+          var _errors, errors, _iteratorNormalCompletion5, _didIteratorError5, _iteratorError5, _iterator5, _step5, _step5$value, ruleReturn, rule, message;
 
           return regeneratorRuntime.wrap(function _callee4$(_context6) {
             while (1) {
@@ -1424,7 +1429,7 @@ function () {
                   errors = [];
 
                   if (!value.reasons) {
-                    _context6.next = 44;
+                    _context6.next = 43;
                     break;
                   }
 
@@ -1436,85 +1441,84 @@ function () {
 
                 case 18:
                   if (_iteratorNormalCompletion5 = (_step5 = _iterator5.next()).done) {
-                    _context6.next = 30;
+                    _context6.next = 29;
                     break;
                   }
 
-                  _ref8 = _step5.value;
-                  ruleReturn = _ref8.ruleReturn, rule = _ref8.rule;
-                  _context6.next = 23;
+                  _step5$value = _step5.value, ruleReturn = _step5$value.ruleReturn, rule = _step5$value.rule;
+                  _context6.next = 22;
                   return rule.message(ruleReturn);
 
-                case 23:
+                case 22:
                   message = _context6.sent;
 
                   if (!(value.id !== validateId)) {
-                    _context6.next = 26;
+                    _context6.next = 25;
                     break;
                   }
 
                   return _context6.abrupt("return");
 
-                case 26:
+                case 25:
                   errors.push({
                     field: _this5,
                     ruleName: rule.name,
                     message: message
                   });
 
-                case 27:
+                case 26:
                   _iteratorNormalCompletion5 = true;
                   _context6.next = 18;
                   break;
 
-                case 30:
-                  _context6.next = 36;
+                case 29:
+                  _context6.next = 35;
                   break;
 
-                case 32:
-                  _context6.prev = 32;
+                case 31:
+                  _context6.prev = 31;
                   _context6.t0 = _context6["catch"](16);
                   _didIteratorError5 = true;
                   _iteratorError5 = _context6.t0;
 
-                case 36:
+                case 35:
+                  _context6.prev = 35;
                   _context6.prev = 36;
-                  _context6.prev = 37;
 
                   if (!_iteratorNormalCompletion5 && _iterator5.return != null) {
                     _iterator5.return();
                   }
 
-                case 39:
-                  _context6.prev = 39;
+                case 38:
+                  _context6.prev = 38;
 
                   if (!_didIteratorError5) {
-                    _context6.next = 42;
+                    _context6.next = 41;
                     break;
                   }
 
                   throw _iteratorError5;
 
+                case 41:
+                  return _context6.finish(38);
+
                 case 42:
-                  return _context6.finish(39);
+                  return _context6.finish(35);
 
                 case 43:
-                  return _context6.finish(36);
-
-                case 44:
                   _this5._errors = errors;
                   _this5._validating = false;
 
-                case 46:
+                case 45:
                 case "end":
                   return _context6.stop();
               }
             }
-          }, _callee4, this, [[16, 32, 36, 44], [37,, 39, 43]]);
+          }, _callee4, this, [[16, 31, 35, 43], [36,, 38, 42]]);
         }));
 
         return function (_x4, _x5) {
-          return _ref6.apply(this, arguments);
+          return _ref3.apply(this, arguments);
         };
       }(), {
         immediate: true
@@ -1626,7 +1630,7 @@ function () {
         },
         /*#__PURE__*/
         function () {
-          var _ref9 = _asyncToGenerator(
+          var _ref4 = _asyncToGenerator(
           /*#__PURE__*/
           regeneratorRuntime.mark(function _callee5(validating) {
             var e;
@@ -1659,7 +1663,7 @@ function () {
           }));
 
           return function (_x6) {
-            return _ref9.apply(this, arguments);
+            return _ref4.apply(this, arguments);
           };
         }(), {
           immediate: true

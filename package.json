@@ -9,7 +9,7 @@
     "Vue validate"
   ],
   "main": "dist/vue-final-validate.cjs.js",
-  "module": "dist/vue-final-validate.esm.js",
+  "module": "dist/vue-final-validate.es.js",
   "author": "phphe <phphe@outlook.com>",
   "license": "MIT",
   "repository": {
@@ -22,7 +22,7 @@
   "scripts": {
     "dev": "vue-cli-service serve",
     "build-vue": "vue-cli-service build",
-    "build": "bili --format cjs --format umd  --format umd-min --format esm --banner",
+    "build": "node build/build-lib.js",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
@@ -31,17 +31,11 @@
     "vue-functions": "^1.0.5"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-class-properties": "^7.5.5",
-    "@babel/plugin-proposal-decorators": "^7.4.4",
-    "@babel/plugin-proposal-export-namespace-from": "^7.5.2",
-    "@babel/plugin-proposal-function-sent": "^7.5.0",
-    "@babel/plugin-proposal-numeric-separator": "^7.2.0",
-    "@babel/plugin-proposal-throw-expressions": "^7.2.0",
-    "bili": "^4.8.1",
     "@vue/cli-plugin-babel": "^3.0.1",
     "@vue/cli-plugin-eslint": "^3.0.1",
     "@vue/cli-service": "^3.0.1",
     "babel-eslint": "^10.0.1",
+    "bili": "^3.4.2",
     "eslint": "^5.8.0",
     "eslint-plugin-vue": "^5.0.0",
     "vue-template-compiler": "^2.5.21"

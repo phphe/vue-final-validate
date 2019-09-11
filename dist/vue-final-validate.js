@@ -1,5 +1,5 @@
 /*!
- * vue-final-validate v1.0.3
+ * vue-final-validate v1.0.4
  * (c) 2017-present phphe <phphe@outlook.com>
  * Released under the MIT License.
  */
@@ -1977,7 +1977,7 @@
     return store[key] || (store[key] = value !== undefined ? value : {});
   })('versions', []).push({
     version: _core$1.version,
-    mode: _library$1 ? 'pure' : 'global',
+    mode: 'global',
     copyright: '© 2018 Denis Pushkarev (zloirock.ru)'
   });
   });
@@ -3848,9 +3848,601 @@
     return obj;
   }
 
+  var _anInstance$1 = function (it, Constructor, name, forbiddenField) {
+    if (!(it instanceof Constructor) || (forbiddenField !== undefined && forbiddenField in it)) {
+      throw TypeError(name + ': incorrect invocation!');
+    } return it;
+  };
+
+  // call something on iterator step with safe closing on error
+
+  var _iterCall$1 = function (iterator, fn, value, entries) {
+    try {
+      return entries ? fn(_anObject$1(value)[0], value[1]) : fn(value);
+    // 7.4.6 IteratorClose(iterator, completion)
+    } catch (e) {
+      var ret = iterator['return'];
+      if (ret !== undefined) _anObject$1(ret.call(iterator));
+      throw e;
+    }
+  };
+
+  // check on default Array iterator
+
+  var ITERATOR$7 = _wks$1('iterator');
+  var ArrayProto$2 = Array.prototype;
+
+  var _isArrayIter$1 = function (it) {
+    return it !== undefined && (_iterators$1.Array === it || ArrayProto$2[ITERATOR$7] === it);
+  };
+
+  var ITERATOR$8 = _wks$1('iterator');
+
+  var core_getIteratorMethod$1 = _core$1.getIteratorMethod = function (it) {
+    if (it != undefined) return it[ITERATOR$8]
+      || it['@@iterator']
+      || _iterators$1[_classof$1(it)];
+  };
+
+  var _forOf$1 = createCommonjsModule(function (module) {
+  var BREAK = {};
+  var RETURN = {};
+  var exports = module.exports = function (iterable, entries, fn, that, ITERATOR) {
+    var iterFn = ITERATOR ? function () { return iterable; } : core_getIteratorMethod$1(iterable);
+    var f = _ctx$1(fn, that, entries ? 2 : 1);
+    var index = 0;
+    var length, step, iterator, result;
+    if (typeof iterFn != 'function') throw TypeError(iterable + ' is not iterable!');
+    // fast case for arrays with default iterator
+    if (_isArrayIter$1(iterFn)) for (length = _toLength$1(iterable.length); length > index; index++) {
+      result = entries ? f(_anObject$1(step = iterable[index])[0], step[1]) : f(iterable[index]);
+      if (result === BREAK || result === RETURN) return result;
+    } else for (iterator = iterFn.call(iterable); !(step = iterator.next()).done;) {
+      result = _iterCall$1(iterator, f, step.value, entries);
+      if (result === BREAK || result === RETURN) return result;
+    }
+  };
+  exports.BREAK = BREAK;
+  exports.RETURN = RETURN;
+  });
+
+  // 7.3.20 SpeciesConstructor(O, defaultConstructor)
+
+
+  var SPECIES$5 = _wks$1('species');
+  var _speciesConstructor$1 = function (O, D) {
+    var C = _anObject$1(O).constructor;
+    var S;
+    return C === undefined || (S = _anObject$1(C)[SPECIES$5]) == undefined ? D : _aFunction$1(S);
+  };
+
+  // fast apply, http://jsperf.lnkit.com/fast-apply/5
+  var _invoke$1 = function (fn, args, that) {
+    var un = that === undefined;
+    switch (args.length) {
+      case 0: return un ? fn()
+                        : fn.call(that);
+      case 1: return un ? fn(args[0])
+                        : fn.call(that, args[0]);
+      case 2: return un ? fn(args[0], args[1])
+                        : fn.call(that, args[0], args[1]);
+      case 3: return un ? fn(args[0], args[1], args[2])
+                        : fn.call(that, args[0], args[1], args[2]);
+      case 4: return un ? fn(args[0], args[1], args[2], args[3])
+                        : fn.call(that, args[0], args[1], args[2], args[3]);
+    } return fn.apply(that, args);
+  };
+
+  var process$3 = _global$1.process;
+  var setTask$1 = _global$1.setImmediate;
+  var clearTask$1 = _global$1.clearImmediate;
+  var MessageChannel$1 = _global$1.MessageChannel;
+  var Dispatch$1 = _global$1.Dispatch;
+  var counter$1 = 0;
+  var queue$1 = {};
+  var ONREADYSTATECHANGE$1 = 'onreadystatechange';
+  var defer$1, channel$1, port$1;
+  var run$1 = function () {
+    var id = +this;
+    // eslint-disable-next-line no-prototype-builtins
+    if (queue$1.hasOwnProperty(id)) {
+      var fn = queue$1[id];
+      delete queue$1[id];
+      fn();
+    }
+  };
+  var listener$1 = function (event) {
+    run$1.call(event.data);
+  };
+  // Node.js 0.9+ & IE10+ has setImmediate, otherwise:
+  if (!setTask$1 || !clearTask$1) {
+    setTask$1 = function setImmediate(fn) {
+      var args = [];
+      var i = 1;
+      while (arguments.length > i) args.push(arguments[i++]);
+      queue$1[++counter$1] = function () {
+        // eslint-disable-next-line no-new-func
+        _invoke$1(typeof fn == 'function' ? fn : Function(fn), args);
+      };
+      defer$1(counter$1);
+      return counter$1;
+    };
+    clearTask$1 = function clearImmediate(id) {
+      delete queue$1[id];
+    };
+    // Node.js 0.8-
+    if (_cof$1(process$3) == 'process') {
+      defer$1 = function (id) {
+        process$3.nextTick(_ctx$1(run$1, id, 1));
+      };
+    // Sphere (JS game engine) Dispatch API
+    } else if (Dispatch$1 && Dispatch$1.now) {
+      defer$1 = function (id) {
+        Dispatch$1.now(_ctx$1(run$1, id, 1));
+      };
+    // Browsers with MessageChannel, includes WebWorkers
+    } else if (MessageChannel$1) {
+      channel$1 = new MessageChannel$1();
+      port$1 = channel$1.port2;
+      channel$1.port1.onmessage = listener$1;
+      defer$1 = _ctx$1(port$1.postMessage, port$1, 1);
+    // Browsers with postMessage, skip WebWorkers
+    // IE8 has postMessage, but it's sync & typeof its postMessage is 'object'
+    } else if (_global$1.addEventListener && typeof postMessage == 'function' && !_global$1.importScripts) {
+      defer$1 = function (id) {
+        _global$1.postMessage(id + '', '*');
+      };
+      _global$1.addEventListener('message', listener$1, false);
+    // IE8-
+    } else if (ONREADYSTATECHANGE$1 in _domCreate$1('script')) {
+      defer$1 = function (id) {
+        _html$1.appendChild(_domCreate$1('script'))[ONREADYSTATECHANGE$1] = function () {
+          _html$1.removeChild(this);
+          run$1.call(id);
+        };
+      };
+    // Rest old browsers
+    } else {
+      defer$1 = function (id) {
+        setTimeout(_ctx$1(run$1, id, 1), 0);
+      };
+    }
+  }
+  var _task$1 = {
+    set: setTask$1,
+    clear: clearTask$1
+  };
+
+  var macrotask$1 = _task$1.set;
+  var Observer$1 = _global$1.MutationObserver || _global$1.WebKitMutationObserver;
+  var process$4 = _global$1.process;
+  var Promise$2 = _global$1.Promise;
+  var isNode$2 = _cof$1(process$4) == 'process';
+
+  var _microtask$1 = function () {
+    var head, last, notify;
+
+    var flush = function () {
+      var parent, fn;
+      if (isNode$2 && (parent = process$4.domain)) parent.exit();
+      while (head) {
+        fn = head.fn;
+        head = head.next;
+        try {
+          fn();
+        } catch (e) {
+          if (head) notify();
+          else last = undefined;
+          throw e;
+        }
+      } last = undefined;
+      if (parent) parent.enter();
+    };
+
+    // Node.js
+    if (isNode$2) {
+      notify = function () {
+        process$4.nextTick(flush);
+      };
+    // browsers with MutationObserver, except iOS Safari - https://github.com/zloirock/core-js/issues/339
+    } else if (Observer$1 && !(_global$1.navigator && _global$1.navigator.standalone)) {
+      var toggle = true;
+      var node = document.createTextNode('');
+      new Observer$1(flush).observe(node, { characterData: true }); // eslint-disable-line no-new
+      notify = function () {
+        node.data = toggle = !toggle;
+      };
+    // environments with maybe non-completely correct, but existent Promise
+    } else if (Promise$2 && Promise$2.resolve) {
+      // Promise.resolve without an argument throws an error in LG WebOS 2
+      var promise = Promise$2.resolve(undefined);
+      notify = function () {
+        promise.then(flush);
+      };
+    // for other environments - macrotask based on:
+    // - setImmediate
+    // - MessageChannel
+    // - window.postMessag
+    // - onreadystatechange
+    // - setTimeout
+    } else {
+      notify = function () {
+        // strange IE + webpack dev server bug - use .call(global)
+        macrotask$1.call(_global$1, flush);
+      };
+    }
+
+    return function (fn) {
+      var task = { fn: fn, next: undefined };
+      if (last) last.next = task;
+      if (!head) {
+        head = task;
+        notify();
+      } last = task;
+    };
+  };
+
+  // 25.4.1.5 NewPromiseCapability(C)
+
+
+  function PromiseCapability$1(C) {
+    var resolve, reject;
+    this.promise = new C(function ($$resolve, $$reject) {
+      if (resolve !== undefined || reject !== undefined) throw TypeError('Bad Promise constructor');
+      resolve = $$resolve;
+      reject = $$reject;
+    });
+    this.resolve = _aFunction$1(resolve);
+    this.reject = _aFunction$1(reject);
+  }
+
+  var f$c = function (C) {
+    return new PromiseCapability$1(C);
+  };
+
+  var _newPromiseCapability$1 = {
+  	f: f$c
+  };
+
+  var _perform$1 = function (exec) {
+    try {
+      return { e: false, v: exec() };
+    } catch (e) {
+      return { e: true, v: e };
+    }
+  };
+
+  var navigator$2 = _global$1.navigator;
+
+  var _userAgent$1 = navigator$2 && navigator$2.userAgent || '';
+
+  var _promiseResolve$1 = function (C, x) {
+    _anObject$1(C);
+    if (_isObject$1(x) && x.constructor === C) return x;
+    var promiseCapability = _newPromiseCapability$1.f(C);
+    var resolve = promiseCapability.resolve;
+    resolve(x);
+    return promiseCapability.promise;
+  };
+
+  var _redefineAll$1 = function (target, src, safe) {
+    for (var key in src) _redefine$1(target, key, src[key], safe);
+    return target;
+  };
+
+  var ITERATOR$9 = _wks$1('iterator');
+  var SAFE_CLOSING$1 = false;
+
+  try {
+    var riter$1 = [7][ITERATOR$9]();
+    riter$1['return'] = function () { SAFE_CLOSING$1 = true; };
+  } catch (e) { /* empty */ }
+
+  var _iterDetect$1 = function (exec, skipClosing) {
+    if (!skipClosing && !SAFE_CLOSING$1) return false;
+    var safe = false;
+    try {
+      var arr = [7];
+      var iter = arr[ITERATOR$9]();
+      iter.next = function () { return { done: safe = true }; };
+      arr[ITERATOR$9] = function () { return iter; };
+      exec(arr);
+    } catch (e) { /* empty */ }
+    return safe;
+  };
+
+  var task$1 = _task$1.set;
+  var microtask$1 = _microtask$1();
+
+
+
+
+  var PROMISE$1 = 'Promise';
+  var TypeError$2 = _global$1.TypeError;
+  var process$5 = _global$1.process;
+  var versions$1 = process$5 && process$5.versions;
+  var v8$1 = versions$1 && versions$1.v8 || '';
+  var $Promise$1 = _global$1[PROMISE$1];
+  var isNode$3 = _classof$1(process$5) == 'process';
+  var empty$1 = function () { /* empty */ };
+  var Internal$1, newGenericPromiseCapability$1, OwnPromiseCapability$1, Wrapper$1;
+  var newPromiseCapability$1 = newGenericPromiseCapability$1 = _newPromiseCapability$1.f;
+
+  var USE_NATIVE$2 = !!function () {
+    try {
+      // correct subclassing with @@species support
+      var promise = $Promise$1.resolve(1);
+      var FakePromise = (promise.constructor = {})[_wks$1('species')] = function (exec) {
+        exec(empty$1, empty$1);
+      };
+      // unhandled rejections tracking support, NodeJS Promise without it fails @@species test
+      return (isNode$3 || typeof PromiseRejectionEvent == 'function')
+        && promise.then(empty$1) instanceof FakePromise
+        // v8 6.6 (Node 10 and Chrome 66) have a bug with resolving custom thenables
+        // https://bugs.chromium.org/p/chromium/issues/detail?id=830565
+        // we can't detect it synchronously, so just check versions
+        && v8$1.indexOf('6.6') !== 0
+        && _userAgent$1.indexOf('Chrome/66') === -1;
+    } catch (e) { /* empty */ }
+  }();
+
+  // helpers
+  var isThenable$1 = function (it) {
+    var then;
+    return _isObject$1(it) && typeof (then = it.then) == 'function' ? then : false;
+  };
+  var notify$1 = function (promise, isReject) {
+    if (promise._n) return;
+    promise._n = true;
+    var chain = promise._c;
+    microtask$1(function () {
+      var value = promise._v;
+      var ok = promise._s == 1;
+      var i = 0;
+      var run = function (reaction) {
+        var handler = ok ? reaction.ok : reaction.fail;
+        var resolve = reaction.resolve;
+        var reject = reaction.reject;
+        var domain = reaction.domain;
+        var result, then, exited;
+        try {
+          if (handler) {
+            if (!ok) {
+              if (promise._h == 2) onHandleUnhandled$1(promise);
+              promise._h = 1;
+            }
+            if (handler === true) result = value;
+            else {
+              if (domain) domain.enter();
+              result = handler(value); // may throw
+              if (domain) {
+                domain.exit();
+                exited = true;
+              }
+            }
+            if (result === reaction.promise) {
+              reject(TypeError$2('Promise-chain cycle'));
+            } else if (then = isThenable$1(result)) {
+              then.call(result, resolve, reject);
+            } else resolve(result);
+          } else reject(value);
+        } catch (e) {
+          if (domain && !exited) domain.exit();
+          reject(e);
+        }
+      };
+      while (chain.length > i) run(chain[i++]); // variable length - can't use forEach
+      promise._c = [];
+      promise._n = false;
+      if (isReject && !promise._h) onUnhandled$1(promise);
+    });
+  };
+  var onUnhandled$1 = function (promise) {
+    task$1.call(_global$1, function () {
+      var value = promise._v;
+      var unhandled = isUnhandled$1(promise);
+      var result, handler, console;
+      if (unhandled) {
+        result = _perform$1(function () {
+          if (isNode$3) {
+            process$5.emit('unhandledRejection', value, promise);
+          } else if (handler = _global$1.onunhandledrejection) {
+            handler({ promise: promise, reason: value });
+          } else if ((console = _global$1.console) && console.error) {
+            console.error('Unhandled promise rejection', value);
+          }
+        });
+        // Browsers should not trigger `rejectionHandled` event if it was handled here, NodeJS - should
+        promise._h = isNode$3 || isUnhandled$1(promise) ? 2 : 1;
+      } promise._a = undefined;
+      if (unhandled && result.e) throw result.v;
+    });
+  };
+  var isUnhandled$1 = function (promise) {
+    return promise._h !== 1 && (promise._a || promise._c).length === 0;
+  };
+  var onHandleUnhandled$1 = function (promise) {
+    task$1.call(_global$1, function () {
+      var handler;
+      if (isNode$3) {
+        process$5.emit('rejectionHandled', promise);
+      } else if (handler = _global$1.onrejectionhandled) {
+        handler({ promise: promise, reason: promise._v });
+      }
+    });
+  };
+  var $reject$1 = function (value) {
+    var promise = this;
+    if (promise._d) return;
+    promise._d = true;
+    promise = promise._w || promise; // unwrap
+    promise._v = value;
+    promise._s = 2;
+    if (!promise._a) promise._a = promise._c.slice();
+    notify$1(promise, true);
+  };
+  var $resolve$1 = function (value) {
+    var promise = this;
+    var then;
+    if (promise._d) return;
+    promise._d = true;
+    promise = promise._w || promise; // unwrap
+    try {
+      if (promise === value) throw TypeError$2("Promise can't be resolved itself");
+      if (then = isThenable$1(value)) {
+        microtask$1(function () {
+          var wrapper = { _w: promise, _d: false }; // wrap
+          try {
+            then.call(value, _ctx$1($resolve$1, wrapper, 1), _ctx$1($reject$1, wrapper, 1));
+          } catch (e) {
+            $reject$1.call(wrapper, e);
+          }
+        });
+      } else {
+        promise._v = value;
+        promise._s = 1;
+        notify$1(promise, false);
+      }
+    } catch (e) {
+      $reject$1.call({ _w: promise, _d: false }, e); // wrap
+    }
+  };
+
+  // constructor polyfill
+  if (!USE_NATIVE$2) {
+    // 25.4.3.1 Promise(executor)
+    $Promise$1 = function Promise(executor) {
+      _anInstance$1(this, $Promise$1, PROMISE$1, '_h');
+      _aFunction$1(executor);
+      Internal$1.call(this);
+      try {
+        executor(_ctx$1($resolve$1, this, 1), _ctx$1($reject$1, this, 1));
+      } catch (err) {
+        $reject$1.call(this, err);
+      }
+    };
+    // eslint-disable-next-line no-unused-vars
+    Internal$1 = function Promise(executor) {
+      this._c = [];             // <- awaiting reactions
+      this._a = undefined;      // <- checked in isUnhandled reactions
+      this._s = 0;              // <- state
+      this._d = false;          // <- done
+      this._v = undefined;      // <- value
+      this._h = 0;              // <- rejection state, 0 - default, 1 - handled, 2 - unhandled
+      this._n = false;          // <- notify
+    };
+    Internal$1.prototype = _redefineAll$1($Promise$1.prototype, {
+      // 25.4.5.3 Promise.prototype.then(onFulfilled, onRejected)
+      then: function then(onFulfilled, onRejected) {
+        var reaction = newPromiseCapability$1(_speciesConstructor$1(this, $Promise$1));
+        reaction.ok = typeof onFulfilled == 'function' ? onFulfilled : true;
+        reaction.fail = typeof onRejected == 'function' && onRejected;
+        reaction.domain = isNode$3 ? process$5.domain : undefined;
+        this._c.push(reaction);
+        if (this._a) this._a.push(reaction);
+        if (this._s) notify$1(this, false);
+        return reaction.promise;
+      },
+      // 25.4.5.1 Promise.prototype.catch(onRejected)
+      'catch': function (onRejected) {
+        return this.then(undefined, onRejected);
+      }
+    });
+    OwnPromiseCapability$1 = function () {
+      var promise = new Internal$1();
+      this.promise = promise;
+      this.resolve = _ctx$1($resolve$1, promise, 1);
+      this.reject = _ctx$1($reject$1, promise, 1);
+    };
+    _newPromiseCapability$1.f = newPromiseCapability$1 = function (C) {
+      return C === $Promise$1 || C === Wrapper$1
+        ? new OwnPromiseCapability$1(C)
+        : newGenericPromiseCapability$1(C);
+    };
+  }
+
+  _export$1(_export$1.G + _export$1.W + _export$1.F * !USE_NATIVE$2, { Promise: $Promise$1 });
+  _setToStringTag$1($Promise$1, PROMISE$1);
+  _setSpecies$1(PROMISE$1);
+  Wrapper$1 = _core$1[PROMISE$1];
+
+  // statics
+  _export$1(_export$1.S + _export$1.F * !USE_NATIVE$2, PROMISE$1, {
+    // 25.4.4.5 Promise.reject(r)
+    reject: function reject(r) {
+      var capability = newPromiseCapability$1(this);
+      var $$reject = capability.reject;
+      $$reject(r);
+      return capability.promise;
+    }
+  });
+  _export$1(_export$1.S + _export$1.F * (_library$1 || !USE_NATIVE$2), PROMISE$1, {
+    // 25.4.4.6 Promise.resolve(x)
+    resolve: function resolve(x) {
+      return _promiseResolve$1(_library$1 && this === Wrapper$1 ? $Promise$1 : this, x);
+    }
+  });
+  _export$1(_export$1.S + _export$1.F * !(USE_NATIVE$2 && _iterDetect$1(function (iter) {
+    $Promise$1.all(iter)['catch'](empty$1);
+  })), PROMISE$1, {
+    // 25.4.4.1 Promise.all(iterable)
+    all: function all(iterable) {
+      var C = this;
+      var capability = newPromiseCapability$1(C);
+      var resolve = capability.resolve;
+      var reject = capability.reject;
+      var result = _perform$1(function () {
+        var values = [];
+        var index = 0;
+        var remaining = 1;
+        _forOf$1(iterable, false, function (promise) {
+          var $index = index++;
+          var alreadyCalled = false;
+          values.push(undefined);
+          remaining++;
+          C.resolve(promise).then(function (value) {
+            if (alreadyCalled) return;
+            alreadyCalled = true;
+            values[$index] = value;
+            --remaining || resolve(values);
+          }, reject);
+        });
+        --remaining || resolve(values);
+      });
+      if (result.e) reject(result.v);
+      return capability.promise;
+    },
+    // 25.4.4.4 Promise.race(iterable)
+    race: function race(iterable) {
+      var C = this;
+      var capability = newPromiseCapability$1(C);
+      var reject = capability.reject;
+      var result = _perform$1(function () {
+        _forOf$1(iterable, false, function (promise) {
+          C.resolve(promise).then(capability.resolve, reject);
+        });
+      });
+      if (result.e) reject(result.v);
+      return capability.promise;
+    }
+  });
+
+  _export$1(_export$1.P + _export$1.R, 'Promise', { 'finally': function (onFinally) {
+    var C = _speciesConstructor$1(this, _core$1.Promise || _global$1.Promise);
+    var isFunction = typeof onFinally == 'function';
+    return this.then(
+      isFunction ? function (x) {
+        return _promiseResolve$1(C, onFinally()).then(function () { return x; });
+      } : onFinally,
+      isFunction ? function (e) {
+        return _promiseResolve$1(C, onFinally()).then(function () { throw e; });
+      } : onFinally
+    );
+  } });
+
   /*!
-   * helper-js v1.3.9
-   * (c) 2018-present phphe <phphe@outlook.com> (https://github.com/phphe)
+   * helper-js v1.4.6
+   * (c) phphe <phphe@outlook.com> (https://github.com/phphe)
    * Released under the MIT License.
    */
 
@@ -3990,6 +4582,7 @@
 
   // local store
   var store = {}; // get global
+  // `this` !== global or window because of build tool
 
   function glb() {
     if (store.glb) {
@@ -4026,12 +4619,46 @@
   function isPromise(v) {
     return Object.prototype.toString.call(v) === '[object Promise]';
   }
+
+  function numRand(min, max) {
+    if (arguments.length === 1) {
+      max = min;
+      min = 0;
+    }
+
+    return Math.floor(Math.random() * (max - min + 1) + min);
+  }
   function kebabCase(str) {
     return str.replace(/ /g, '-').replace(/_/g, '-').replace(/([A-Z])/g, '-$1').replace(/--+/g, '-').replace(/^-|-$|/g, '').toLowerCase();
   }
   function snakeCase(str) {
     return kebabCase(str).replace(/-/g, '_');
   }
+  function strRand() {
+    var len = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 8;
+    var prefix = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
+    var r = '';
+    var seeds = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+    for (var i = 0; i < len; i++) {
+      r += seeds[numRand(seeds.length - 1)];
+    }
+
+    return prefix + r;
+  }
+
+  function arrayRemove(arr, v) {
+    var index;
+    var count = 0;
+
+    while ((index = arr.indexOf(v)) > -1) {
+      arr.splice(index, 1);
+      count++;
+    }
+
+    return count;
+  }
+  // todo change reverse to opt in next version
 
   function forAll(val, handler, reverse) {
     if (!reverse) {
@@ -4197,12 +4824,40 @@
         };
 
         var wrappedHandler = function wrappedHandler() {
-          handler();
+          handler.apply(void 0, arguments);
           off();
         };
 
         this.on(name, wrappedHandler);
         return off;
+      }
+    }, {
+      key: "onceTimeout",
+      value: function onceTimeout(name, handler, timeout) {
+        var _this6 = this;
+
+        var off;
+        var promise = new Promise(function (resolve, reject) {
+          var wrappedHandler = function wrappedHandler() {
+            handler.apply(void 0, arguments);
+            resolve();
+          };
+
+          off = _this6.once(name, wrappedHandler);
+          waitTime(timeout).then(function () {
+            off();
+            reject();
+          });
+        });
+
+        var off2 = function off2() {
+          off && off();
+        };
+
+        return {
+          off: off2,
+          promise: promise
+        };
       }
     }, {
       key: "off",
@@ -4246,8 +4901,8 @@
           _iteratorError9 = err;
         } finally {
           try {
-            if (!_iteratorNormalCompletion9 && _iterator9.return != null) {
-              _iterator9.return();
+            if (!_iteratorNormalCompletion9 && _iterator9["return"] != null) {
+              _iterator9["return"]();
             }
           } finally {
             if (_didIteratorError9) {
@@ -4270,65 +4925,188 @@
 
     return EventProcessor;
   }();
-  var CrossWindow =
+  var CrossWindowEventProcessor =
   /*#__PURE__*/
   function (_EventProcessor) {
-    _inherits(CrossWindow, _EventProcessor);
+    _inherits(CrossWindowEventProcessor, _EventProcessor);
 
-    function CrossWindow() {
-      var _this6;
+    // id
+    function CrossWindowEventProcessor(opt) {
+      var _this7;
 
-      _classCallCheck$1(this, CrossWindow);
+      _classCallCheck$1(this, CrossWindowEventProcessor);
 
-      _this6 = _possibleConstructorReturn(this, _getPrototypeOf(CrossWindow).call(this));
+      _this7 = _possibleConstructorReturn(this, _getPrototypeOf(CrossWindowEventProcessor).call(this));
 
-      _defineProperty$1(_assertThisInitialized(_this6), "storageName", '_crossWindow');
+      _defineProperty$1(_assertThisInitialized(_this7), "storageName", '_crossWindow');
 
-      var cls = CrossWindow;
+      _defineProperty$1(_assertThisInitialized(_this7), "windows", []);
 
-      if (!cls._listen) {
-        cls._listen = true;
-        onDOM(window, 'storage', function (ev) {
-          if (ev.key === _this6.storageName) {
-            var _get2;
+      _defineProperty$1(_assertThisInitialized(_this7), "timeout", 200);
 
-            var event = JSON.parse(ev.newValue);
+      _defineProperty$1(_assertThisInitialized(_this7), "BROADCAST", '__BROADCAST__');
 
-            (_get2 = _get(_getPrototypeOf(CrossWindow.prototype), "emit", _assertThisInitialized(_this6))).call.apply(_get2, [_assertThisInitialized(_this6), event.name].concat(_toConsumableArray$1(event.args)));
-          }
-        });
+      if (opt) {
+        Object.assign(_assertThisInitialized(_this7), opt);
       }
 
-      return _this6;
+      onDOM(window, 'storage', function (ev) {
+        if (ev.key === _this7.storageName) {
+          var event = JSON.parse(ev.newValue);
+
+          if (!event.targets || event.targets.includes(_this7.id)) {
+            var _this8;
+
+            (_this8 = _this7).emitLocal.apply(_this8, [event.name].concat(_toConsumableArray$1(event.args)));
+          }
+        }
+      }); // social parts 集体部分
+      // join
+
+      _this7.id = strRand();
+      _this7.windows = [_this7.id];
+      _this7.ready = new Promise(function (resolve, reject) {
+        _this7.onceTimeout('_windows_updated', function (_ref) {
+          var windows = _ref.windows;
+          _this7.windows = windows;
+        }, _this7.timeout).promise.then(function () {
+          resolve(); // responsed 被响应
+        }, function () {
+          // no response 无响应
+          resolve();
+        });
+
+        _this7.broadcast('_join', _this7.id);
+      });
+
+      _this7.ready.then(function () {
+        // on join
+        _this7.on('_join', function (id) {
+          _this7.windows.push(id);
+
+          if (_this7.isMain()) {
+            _this7.broadcast('_windows_updated', {
+              windows: _this7.windows,
+              type: 'join',
+              id: id
+            });
+          }
+        }); // on _windows_updated
+
+
+        _this7.on('_windows_updated', function (_ref2) {
+          var windows = _ref2.windows;
+          _this7.windows = windows;
+        }); // on exit
+
+
+        _this7.on('_exit', function (id) {
+          var oldMain = _this7.windows[0];
+          arrayRemove(_this7.windows, id);
+
+          if (_this7.isMain()) {
+            _this7.emit('_windows_updated', {
+              windows: _this7.windows,
+              type: 'exit',
+              id: id
+            });
+
+            if (oldMain != _this7.id) {
+              console.log('_main_updated');
+
+              _this7.emit('_main_updated', {
+                windows: _this7.windows,
+                old: oldMain,
+                'new': _this7.id
+              });
+            }
+          }
+        });
+
+        onDOM(window, 'beforeunload', function () {
+          _this7.exitGroup();
+        });
+      });
+
+      return _this7;
     }
 
-    _createClass$1(CrossWindow, [{
-      key: "emit",
-      value: function emit(name) {
-        var _get3;
-
-        for (var _len9 = arguments.length, args = new Array(_len9 > 1 ? _len9 - 1 : 0), _key10 = 1; _key10 < _len9; _key10++) {
-          args[_key10 - 1] = arguments[_key10];
+    _createClass$1(CrossWindowEventProcessor, [{
+      key: "isMain",
+      value: function isMain() {
+        return this.id === this.windows[0];
+      }
+    }, {
+      key: "emitTo",
+      value: function emitTo(name, targets) {
+        for (var _len9 = arguments.length, args = new Array(_len9 > 2 ? _len9 - 2 : 0), _key10 = 2; _key10 < _len9; _key10++) {
+          args[_key10 - 2] = arguments[_key10];
         }
 
-        (_get3 = _get(_getPrototypeOf(CrossWindow.prototype), "emit", this)).call.apply(_get3, [this, name].concat(args));
+        if (targets === this.BROADCAST) {
+          targets = null;
+        } else {
+          if (targets && !isArray$2(targets)) {
+            targets = [targets];
+          }
+
+          if (targets.includes(this.id)) {
+            var _get2;
+
+            (_get2 = _get(_getPrototypeOf(CrossWindowEventProcessor.prototype), "emit", this)).call.apply(_get2, [this, name].concat(args)); // emit to current window
+
+          }
+        }
 
         glb().localStorage.setItem(this.storageName, JSON.stringify({
           name: name,
+          targets: targets,
           args: args,
           // use random make storage event triggered every time
           // 加入随机保证触发storage事件
           random: Math.random()
         }));
       }
+    }, {
+      key: "emitLocal",
+      value: function emitLocal(name) {
+        for (var _len10 = arguments.length, args = new Array(_len10 > 1 ? _len10 - 1 : 0), _key11 = 1; _key11 < _len10; _key11++) {
+          args[_key11 - 1] = arguments[_key11];
+        }
+
+        this.emitTo.apply(this, [name, this.id].concat(args));
+      }
+    }, {
+      key: "broadcast",
+      value: function broadcast(name) {
+        for (var _len11 = arguments.length, args = new Array(_len11 > 1 ? _len11 - 1 : 0), _key12 = 1; _key12 < _len11; _key12++) {
+          args[_key12 - 1] = arguments[_key12];
+        }
+
+        this.emitTo.apply(this, [name, this.BROADCAST].concat(args));
+      }
+    }, {
+      key: "emit",
+      value: function emit(name) {
+        for (var _len12 = arguments.length, args = new Array(_len12 > 1 ? _len12 - 1 : 0), _key13 = 1; _key13 < _len12; _key13++) {
+          args[_key13 - 1] = arguments[_key13];
+        }
+
+        this.emitTo.apply(this, [name, this.windows].concat(args));
+      }
+    }, {
+      key: "exitGroup",
+      value: function exitGroup() {
+        this.broadcast('_exit', this.id);
+      }
     }]);
 
-    return CrossWindow;
-  }(EventProcessor);
+    return CrossWindowEventProcessor;
+  }(EventProcessor); // Deprecated in next version
 
   /*!
-   * vue-functions v0.0.7
-   * (c) 2019-present phphe <phphe@outlook.com> (https://github.com/phphe)
+   * vue-functions v1.0.5
+   * (c) phphe <phphe@outlook.com> (https://github.com/phphe)
    * Released under the MIT License.
    */
 
@@ -4409,7 +5187,7 @@
         };
       }
     }
-  }
+  } // add reactive `windowSize`
 
   // 21.2.5.3 get RegExp.prototype.flags()
   if (_descriptors$1 && /./g.flags != 'g') _objectDp$1.f(RegExp.prototype, 'flags', {
@@ -4805,9 +5583,9 @@
 
           try {
             for (var _iterator2 = getIterator$1(iterateObjectWithoutDollarDash(this)), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-              var _ref2 = _step2.value;
-              var key = _ref2.key,
-                  value = _ref2.value;
+              var _step2$value = _step2.value,
+                  key = _step2$value.key,
+                  value = _step2$value.value;
               this.$add(key, value);
             }
           } catch (err) {
@@ -4899,9 +5677,9 @@
 
             try {
               var _loop = function _loop() {
-                var _ref3 = _step3.value;
-                var key = _ref3.key,
-                    value = _ref3.value;
+                var _step3$value = _step3.value,
+                    key = _step3$value.key,
+                    value = _step3$value.value;
                 exec(function () {
                   return _this3[key];
                 });
@@ -5000,7 +5778,7 @@
                             resolveMessage =
                             /*#__PURE__*/
                             function () {
-                              var _ref4 = _asyncToGenerator(
+                              var _ref = _asyncToGenerator(
                               /*#__PURE__*/
                               regeneratorRuntime.mark(function _callee(message) {
                                 return regeneratorRuntime.wrap(function _callee$(_context) {
@@ -5030,7 +5808,7 @@
                               }));
 
                               return function resolveMessage(_x2) {
-                                return _ref4.apply(this, arguments);
+                                return _ref.apply(this, arguments);
                               };
                             }(); //
                             // get message from config
@@ -5283,7 +6061,7 @@
         var unwatch = watchAsync(this.$vm,
         /*#__PURE__*/
         function () {
-          var _ref5 = _asyncToGenerator(
+          var _ref2 = _asyncToGenerator(
           /*#__PURE__*/
           regeneratorRuntime.mark(function _callee3(exec) {
             var id, rules$$1, rulesRequired, rulesValid, required, valid, reasons, _loop3, i, _ret, _iteratorNormalCompletion4, _didIteratorError4, _iteratorError4, _loop4, _iterator4, _step4, _ret2;
@@ -5512,7 +6290,9 @@
                               exec(function () {
                                 return rule.handler;
                               });
-                              t = rule.handler(exec);
+                              t = exec(function () {
+                                return rule.handler(exec);
+                              });
 
                               if (isPromise(t) && _this5.$globalConfig.timeout) {
                                 t = promiseTimeout(t, _this5.$globalConfig.timeout);
@@ -5653,15 +6433,15 @@
           }));
 
           return function (_x3) {
-            return _ref5.apply(this, arguments);
+            return _ref2.apply(this, arguments);
           };
         }(),
         /*#__PURE__*/
         function () {
-          var _ref6 = _asyncToGenerator(
+          var _ref3 = _asyncToGenerator(
           /*#__PURE__*/
           regeneratorRuntime.mark(function _callee4(value, old) {
-            var _errors, errors, _iteratorNormalCompletion5, _didIteratorError5, _iteratorError5, _iterator5, _step5, _ref8, ruleReturn, rule, message;
+            var _errors, errors, _iteratorNormalCompletion5, _didIteratorError5, _iteratorError5, _iterator5, _step5, _step5$value, ruleReturn, rule, message;
 
             return regeneratorRuntime.wrap(function _callee4$(_context6) {
               while (1) {
@@ -5693,7 +6473,7 @@
                     errors = [];
 
                     if (!value.reasons) {
-                      _context6.next = 44;
+                      _context6.next = 43;
                       break;
                     }
 
@@ -5705,85 +6485,84 @@
 
                   case 18:
                     if (_iteratorNormalCompletion5 = (_step5 = _iterator5.next()).done) {
-                      _context6.next = 30;
+                      _context6.next = 29;
                       break;
                     }
 
-                    _ref8 = _step5.value;
-                    ruleReturn = _ref8.ruleReturn, rule = _ref8.rule;
-                    _context6.next = 23;
+                    _step5$value = _step5.value, ruleReturn = _step5$value.ruleReturn, rule = _step5$value.rule;
+                    _context6.next = 22;
                     return rule.message(ruleReturn);
 
-                  case 23:
+                  case 22:
                     message = _context6.sent;
 
                     if (!(value.id !== validateId)) {
-                      _context6.next = 26;
+                      _context6.next = 25;
                       break;
                     }
 
                     return _context6.abrupt("return");
 
-                  case 26:
+                  case 25:
                     errors.push({
                       field: _this5,
                       ruleName: rule.name,
                       message: message
                     });
 
-                  case 27:
+                  case 26:
                     _iteratorNormalCompletion5 = true;
                     _context6.next = 18;
                     break;
 
-                  case 30:
-                    _context6.next = 36;
+                  case 29:
+                    _context6.next = 35;
                     break;
 
-                  case 32:
-                    _context6.prev = 32;
+                  case 31:
+                    _context6.prev = 31;
                     _context6.t0 = _context6["catch"](16);
                     _didIteratorError5 = true;
                     _iteratorError5 = _context6.t0;
 
-                  case 36:
+                  case 35:
+                    _context6.prev = 35;
                     _context6.prev = 36;
-                    _context6.prev = 37;
 
                     if (!_iteratorNormalCompletion5 && _iterator5.return != null) {
                       _iterator5.return();
                     }
 
-                  case 39:
-                    _context6.prev = 39;
+                  case 38:
+                    _context6.prev = 38;
 
                     if (!_didIteratorError5) {
-                      _context6.next = 42;
+                      _context6.next = 41;
                       break;
                     }
 
                     throw _iteratorError5;
 
+                  case 41:
+                    return _context6.finish(38);
+
                   case 42:
-                    return _context6.finish(39);
+                    return _context6.finish(35);
 
                   case 43:
-                    return _context6.finish(36);
-
-                  case 44:
                     _this5._errors = errors;
                     _this5._validating = false;
 
-                  case 46:
+                  case 45:
                   case "end":
                     return _context6.stop();
                 }
               }
-            }, _callee4, this, [[16, 32, 36, 44], [37,, 39, 43]]);
+            }, _callee4, this, [[16, 31, 35, 43], [36,, 38, 42]]);
           }));
 
           return function (_x4, _x5) {
-            return _ref6.apply(this, arguments);
+            return _ref3.apply(this, arguments);
           };
         }(), {
           immediate: true
@@ -5895,7 +6674,7 @@
           },
           /*#__PURE__*/
           function () {
-            var _ref9 = _asyncToGenerator(
+            var _ref4 = _asyncToGenerator(
             /*#__PURE__*/
             regeneratorRuntime.mark(function _callee5(validating) {
               var e;
@@ -5928,7 +6707,7 @@
             }));
 
             return function (_x6) {
-              return _ref9.apply(this, arguments);
+              return _ref4.apply(this, arguments);
             };
           }(), {
             immediate: true
