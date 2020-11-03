@@ -752,7 +752,9 @@ export function listenUserInput() {
 }
 
 export default function install(Vue, config) {
-  listenUserInput()
+  if (typeof window !== 'undefined') {
+    listenUserInput()
+  }
   const cfg = getDefaultConfig()
   if (config) {
     Object.assign(cfg, config)
