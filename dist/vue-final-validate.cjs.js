@@ -1,5 +1,5 @@
 /*!
- * vue-final-validate v1.0.4
+ * vue-final-validate v1.0.5
  * (c) 2017-present phphe <phphe@outlook.com>
  * Released under the MIT License.
  */
@@ -1789,7 +1789,10 @@ function listenUserInput() {
   hp.onDOM(window, 'dragend', handler);
 }
 function install(Vue, config) {
-  listenUserInput();
+  if (typeof window !== 'undefined') {
+    listenUserInput();
+  }
+
   var cfg = getDefaultConfig();
 
   if (config) {
