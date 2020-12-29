@@ -21,7 +21,8 @@ const rules = {
     return value !== relatedField.$value
   },
   email(value) {
-    return /^\w+([\.-]?\w+)*@\w+([\.:]?\w+)+(\.[a-zA-Z0-9]{2,3})*$/.test(value)
+    // from https://regexlib.com/Search.aspx?k=email
+    return /^([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})$/.test(value)
   },
   in(value, params) {
     return params[0].indexOf(value) > -1
