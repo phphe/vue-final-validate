@@ -1,5 +1,5 @@
 /*!
- * vue-final-validate v1.0.5
+ * vue-final-validate v1.0.6
  * (c) 2017-present phphe <phphe@outlook.com>
  * Released under the MIT License.
  */
@@ -193,7 +193,8 @@ var rules = {
     return value !== relatedField.$value;
   },
   email: function email(value) {
-    return /^\w+([\.-]?\w+)*@\w+([\.:]?\w+)+(\.[a-zA-Z0-9]{2,3})*$/.test(value);
+    // from https://regexlib.com/Search.aspx?k=email
+    return /^([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})$/.test(value);
   },
   in: function _in(value, params) {
     return params[0].indexOf(value) > -1;
