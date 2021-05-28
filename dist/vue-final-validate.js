@@ -1,5 +1,5 @@
 /*!
- * vue-final-validate v1.0.6
+ * vue-final-validate v1.0.7
  * (c) 2017-present phphe <phphe@outlook.com>
  * Released under the MIT License.
  */
@@ -483,6 +483,8 @@
       if (IteratorPrototype !== Object.prototype && IteratorPrototype.next) {
         // Set @@toStringTag to native iterators
         _setToStringTag(IteratorPrototype, TAG, true);
+        // fix for some old engines
+        if (!_library && typeof IteratorPrototype[ITERATOR] != 'function') _hide(IteratorPrototype, ITERATOR, returnThis);
       }
     }
     // fix Array#{values, @@iterator}.name in V8 / FF
@@ -491,7 +493,7 @@
       $default = function values() { return $native.call(this); };
     }
     // Define iterator
-    if ((FORCED) && (BUGGY || VALUES_BUG || !proto[ITERATOR])) {
+    if ((!_library || FORCED) && (BUGGY || VALUES_BUG || !proto[ITERATOR])) {
       _hide(proto, ITERATOR, $default);
     }
     // Plug for library
@@ -3295,7 +3297,7 @@
         // Set @@toStringTag to native iterators
         _setToStringTag$1(IteratorPrototype, TAG, true);
         // fix for some old engines
-        if (typeof IteratorPrototype[ITERATOR$5] != 'function') _hide$1(IteratorPrototype, ITERATOR$5, returnThis$1);
+        if (!_library$1 && typeof IteratorPrototype[ITERATOR$5] != 'function') _hide$1(IteratorPrototype, ITERATOR$5, returnThis$1);
       }
     }
     // fix Array#{values, @@iterator}.name in V8 / FF
@@ -3304,7 +3306,7 @@
       $default = function values() { return $native.call(this); };
     }
     // Define iterator
-    if (BUGGY$1 || VALUES_BUG || !proto[ITERATOR$5]) {
+    if ((!_library$1 || FORCED) && (BUGGY$1 || VALUES_BUG || !proto[ITERATOR$5])) {
       _hide$1(proto, ITERATOR$5, $default);
     }
     // Plug for library

@@ -1,5 +1,5 @@
 /*!
- * vue-final-validate v1.0.6
+ * vue-final-validate v1.0.7
  * (c) 2017-present phphe <phphe@outlook.com>
  * Released under the MIT License.
  */
